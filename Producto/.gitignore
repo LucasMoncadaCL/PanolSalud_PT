@@ -1,0 +1,51 @@
+# === Maven ===
+target/
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+release.properties
+
+# === Gradle ===
+.gradle/
+build/
+!gradle/wrapper/gradle-wrapper.jar
+
+# === Logs ===
+*.log
+
+# === OS files ===
+.DS_Store
+Thumbs.db
+
+# === IDEs ===
+# IntelliJ
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# Eclipse
+.classpath
+.project
+.settings/
+bin/
+
+# VS Code
+.vscode/
+
+# === Spring Boot specific ===
+# Embedded Tomcat / Jetty temp files
+.spring-boot-devtools.properties
+.spring-boot-devtools/
+
+# === Test reports ===
+/test-output/
+surefire-reports/
+failsafe-reports/
+
+# === Others ===
+*.swp
+*.swo
+*.bak
+*.tmp
