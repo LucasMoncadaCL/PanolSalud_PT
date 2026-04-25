@@ -49,3 +49,10 @@ failsafe-reports/
 *.swo
 *.bak
 *.tmp
+
+# === Environment / Secrets ===
+backendpanol/.env
+backendpanol/.env.local
+backendpanol/.env.*.local
+backendpanol/secrets/*.txt
+backendpanol/secrets/application-secrets.properties

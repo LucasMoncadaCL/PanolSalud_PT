@@ -1,0 +1,16 @@
+# Build output
+target/
+
+# VCS and IDE
+.git
+.idea
+.vscode
+
+# Environment and secrets
+.env
+.env.*
+secrets/*.txt
+secrets/application-secrets.properties
+
+# Logs
+*.log
