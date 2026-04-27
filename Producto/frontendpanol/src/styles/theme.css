@@ -435,10 +435,35 @@ textarea {
   min-height: 84px;
 }
 
+.modal select {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 11px 10px;
+  font-size: 0.95rem;
+  background: #fff;
+}
+
+.field-hint {
+  margin: 8px 0 0;
+  color: var(--text-soft);
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
 .field-error {
   color: #b1354a;
   font-size: 0.85rem;
   margin: 8px 0 0;
+}
+
+.success-banner {
+  margin-bottom: 12px;
+  background: #e8f7ef;
+  color: #1e8a59;
+  border: 1px solid #b9e6cc;
+  border-radius: 10px;
+  padding: 10px;
 }
 
 .modal-actions {

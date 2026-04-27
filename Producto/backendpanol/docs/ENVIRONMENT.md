@@ -65,6 +65,7 @@ Puedes guardar solo la que corresponda al entorno activo.
 - `APP_PORT`: puerto HTTP del backend.
 - `JWT_ISSUER_URI`: issuer JWT.
 - `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`: valores de integracion.
+- `APP_SECURITY_ENABLED=true|false`: habilita/deshabilita Spring Security (por defecto `false`). Para habilitar seguridad (JWT + roles), usa `true`.
 
 ### Entorno Docker local (`APP_DB_ENV=docker`)
 

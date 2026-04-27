@@ -2,20 +2,22 @@ import { Bell, Boxes, ClipboardList, ClipboardPlus, MapPin, PackageSearch, Setti
 import type { ReactNode } from "react";
 
 const menuInventory = [
-  { label: "Resumen", icon: PackageSearch },
-  { label: "Ítems", icon: Boxes },
-  { label: "Categorías", icon: ClipboardList, active: true },
-  { label: "Ubicaciones", icon: MapPin },
-  { label: "Movimientos", icon: ClipboardPlus },
-];
+  { key: "summary", label: "Resumen", icon: PackageSearch, href: "#/inventory" },
+  { key: "items", label: "Implementos", icon: Boxes, href: "#/inventory/implementos" },
+  { key: "categories", label: "Categorias", icon: ClipboardList, href: "#/inventory/categories" },
+  { key: "locations", label: "Ubicaciones", icon: MapPin, href: "#/inventory/locations" },
+  { key: "moves", label: "Movimientos", icon: ClipboardPlus, href: "#/inventory/moves" },
+] as const;
 
 const menuConfig = [
   { label: "Unidades de medida", icon: Settings },
-  { label: "Atributos de ítems", icon: Settings },
+  { label: "Atributos de items", icon: Settings },
   { label: "Historial de cambios", icon: Settings },
 ];
 
-export function Sidebar() {
+export type InventorySection = (typeof menuInventory)[number]["key"];
+
+export function Sidebar({ activeSection }: { activeSection: InventorySection }) {
   return (
     <aside className="sidebar">
       <section>
@@ -23,13 +25,16 @@ export function Sidebar() {
         <ul className="sidebar__list">
           {menuInventory.map((item) => {
             const Icon = item.icon;
+            const isActive = item.key === activeSection;
             return (
-              <li
-                key={item.label}
-                className={item.active ? "sidebar__item sidebar__item--active" : "sidebar__item"}
-              >
-                <Icon size={18} />
-                <span>{item.label}</span>
+              <li key={item.label}>
+                <a
+                  href={item.href}
+                  className={isActive ? "sidebar__item sidebar__item--active" : "sidebar__item"}
+                >
+                  <Icon size={18} />
+                  <span>{item.label}</span>
+                </a>
               </li>
             );
           })}
@@ -37,7 +42,7 @@ export function Sidebar() {
       </section>
 
       <section>
-        <h3 className="sidebar__title">Configuración</h3>
+        <h3 className="sidebar__title">Configuracion</h3>
         <ul className="sidebar__list">
           {menuConfig.map((item) => {
             const Icon = item.icon;
@@ -52,10 +57,10 @@ export function Sidebar() {
       </section>
 
       <section className="sidebar__help">
-        <h4>¿Necesitas ayuda?</h4>
-        <p>Revisa la guía rápida de inventario para coordinadores.</p>
+        <h4>Necesitas ayuda?</h4>
+        <p>Revisa la guia rapida de inventario para coordinadores.</p>
         <button type="button" className="button button--ghost">
-          Ver guía
+          Ver guia
         </button>
       </section>
     </aside>
@@ -68,7 +73,7 @@ export function TopBar() {
       <div className="topbar__brand">
         <div className="topbar__logo">P</div>
         <div>
-          <strong>Pañolero</strong>
+          <strong>Panolero</strong>
           <p>Escuela de Salud</p>
         </div>
       </div>
@@ -78,7 +83,7 @@ export function TopBar() {
         <a href="#" className="is-active">
           Inventario
         </a>
-        <a href="#">Préstamos</a>
+        <a href="#">Prestamos</a>
         <a href="#">Reportes</a>
       </nav>
 
@@ -88,7 +93,7 @@ export function TopBar() {
         </button>
         <div className="topbar__avatar">FJ</div>
         <div>
-          <strong>Francisco Jiménez</strong>
+          <strong>Francisco Jimenez</strong>
           <p>Coordinador de Laboratorio</p>
         </div>
       </div>
@@ -96,12 +101,18 @@ export function TopBar() {
   );
 }
 
-export function InventoryLayout({ children }: { children: ReactNode }) {
+export function InventoryLayout({
+  children,
+  activeSection = "categories",
+}: {
+  children: ReactNode;
+  activeSection?: InventorySection;
+}) {
   return (
     <div className="app-shell">
       <TopBar />
       <div className="app-shell__content">
-        <Sidebar />
+        <Sidebar activeSection={activeSection} />
         <main className="app-shell__main">{children}</main>
       </div>
     </div>

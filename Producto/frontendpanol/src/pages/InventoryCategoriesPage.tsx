@@ -98,7 +98,7 @@ export function InventoryCategoriesPage() {
   }
 
   return (
-    <InventoryLayout>
+    <InventoryLayout activeSection="categories">
       <section className="content-header">
         <div>
           <h1>Gestión de Inventario</h1>
