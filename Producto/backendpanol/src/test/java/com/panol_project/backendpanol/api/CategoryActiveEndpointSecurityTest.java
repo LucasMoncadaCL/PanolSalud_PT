@@ -7,7 +7,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.panol_project.backendpanol.bootstrap.config.SecurityConfig;
-import com.panol_project.backendpanol.modules.catalog.category.api.CategoriaController;
+import com.panol_project.backendpanol.modules.catalog.category.api.CategoryActiveController;
 import com.panol_project.backendpanol.modules.catalog.category.application.CategoriaService;
 import com.panol_project.backendpanol.modules.catalog.category.domain.Categoria;
 import com.panol_project.backendpanol.shared.error.security.RestAccessDeniedHandler;
@@ -24,14 +24,14 @@ import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.context.TestPropertySource;
 
-@WebMvcTest(controllers = CategoriaController.class)
+@WebMvcTest(controllers = CategoryActiveController.class)
 @Import({
         SecurityConfig.class,
         RestAuthenticationEntryPoint.class,
         RestAccessDeniedHandler.class
 })
 @TestPropertySource(properties = "app.security.enabled=true")
-class CategoriaActiveEndpointSecurityTest {
+class CategoryActiveEndpointSecurityTest {
 
     @Autowired
     private MockMvc mvc;
@@ -44,13 +44,13 @@ class CategoriaActiveEndpointSecurityTest {
 
     @Test
     void getActiveDebeRequerirJwt() throws Exception {
-        mvc.perform(get("/api/categorias/active"))
+        mvc.perform(get("/api/categories/active"))
                 .andExpect(status().isUnauthorized());
     }
 
     @Test
     void getActiveDebeRechazarSinRolCoordinador() throws Exception {
-        mvc.perform(get("/api/categorias/active").with(jwt()))
+        mvc.perform(get("/api/categories/active").with(jwt()))
                 .andExpect(status().isForbidden());
     }
 
@@ -61,7 +61,7 @@ class CategoriaActiveEndpointSecurityTest {
                 new Categoria(2, "Insumos", null, true, OffsetDateTime.now())
         ));
 
-        mvc.perform(get("/api/categorias/active").with(jwt()
+        mvc.perform(get("/api/categories/active").with(jwt()
                         .authorities(new SimpleGrantedAuthority("ROLE_COORDINADOR"))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].id").value(1))

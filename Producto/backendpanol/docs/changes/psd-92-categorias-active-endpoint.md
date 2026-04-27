@@ -7,6 +7,7 @@ Exponer un endpoint para poblar el selector de **categoria** en el formulario de
 ## Endpoint
 
 - `GET /api/categorias/active`
+- `GET /api/categories/active` (alias para consumo frontend)
 
 ### Respuesta (200)
 
@@ -50,4 +51,3 @@ Comando (evita codegen jOOQ en test):
 ```bash
 ./mvnw -Djooq.codegen.skip=true test
 ```
-

@@ -9,6 +9,20 @@ export const apiClient = axios.create({
   timeout: 12000,
 });
 
+apiClient.interceptors.request.use((config) => {
+  try {
+    const token = window.localStorage.getItem("access_token");
+    if (token) {
+      config.headers = config.headers ?? {};
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+  } catch {
+    // ignore
+  }
+
+  return config;
+});
+
 export function getApiErrorPayload(error: unknown): ApiErrorPayload | null {
   if (!(error instanceof AxiosError)) {
     return null;
