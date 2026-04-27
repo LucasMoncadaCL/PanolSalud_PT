@@ -57,6 +57,12 @@ Todos los errores 4xx/5xx devuelven payload uniforme:
 ./mvnw generate-sources
 ```
 
+- En PowerShell (sin exponer credenciales en linea de comando), usar:
+
+```powershell
+.\scripts\generate-jooq.ps1
+```
+
 Variables requeridas para codegen:
 
 ```bash
@@ -107,3 +113,4 @@ docker compose up --build
 ## Documentación adicional
 
 - [`docs/BACKEND.md`](./docs/BACKEND.md)
+- [`docs/ENVIRONMENT.md`](./docs/ENVIRONMENT.md)

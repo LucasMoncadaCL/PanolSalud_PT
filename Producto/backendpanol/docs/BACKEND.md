@@ -46,3 +46,6 @@ Formato uniforme:
 
 - Flyway usa baseline marker en `V1__baseline.sql`.
 - jOOQ genera modelos desde PostgreSQL/Supabase usando `JOOQ_DB_*`.
+- Comando manual: `./mvnw generate-sources` (o `mvnw.cmd generate-sources` en Windows).
+- Los fuentes generados quedan en `target/generated-sources/jooq`.
+- Referencia detallada: `docs/ENVIRONMENT.md` (seccion "Ejecucion de jOOQ").
