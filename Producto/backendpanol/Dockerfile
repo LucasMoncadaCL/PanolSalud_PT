@@ -1,4 +1,4 @@
-FROM maven:3.9.9-eclipse-temurin-17 AS build
+FROM maven:3.9.9-eclipse-temurin-21 AS build
 WORKDIR /app
 
 ARG JOOQ_DB_URL
@@ -14,7 +14,7 @@ COPY src src
 
 RUN mvn -q -DskipTests package
 
-FROM eclipse-temurin:17-jre
+FROM eclipse-temurin:21-jre
 WORKDIR /app
 
 COPY --from=build /app/target/backendpanol-0.0.1-SNAPSHOT.jar app.jar

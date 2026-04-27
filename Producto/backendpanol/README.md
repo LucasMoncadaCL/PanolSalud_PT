@@ -82,6 +82,11 @@ DB_PASSWORD=replace_me
 - `spring.flyway.baseline-on-migrate=true` permite iniciar historial Flyway en una BD no vacia sin recrear tablas existentes.
 - Cambios nuevos deben agregarse como migraciones forward-only: `V2__*.sql`, `V3__*.sql`, etc.
 
+## Requisitos
+
+- JDK 21
+- Maven Wrapper (`./mvnw`)
+
 ## Run local
 
 ```bash
