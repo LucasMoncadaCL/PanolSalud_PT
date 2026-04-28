@@ -12,7 +12,6 @@ import com.panol_project.backendpanol.modules.catalog.implement.domain.Implement
 import com.panol_project.backendpanol.modules.catalog.implement.domain.Implemento;
 import com.panol_project.backendpanol.modules.catalog.location.application.LocationService;
 import com.panol_project.backendpanol.shared.error.BadRequestException;
-import com.panol_project.backendpanol.shared.error.ConflictException;
 import com.panol_project.backendpanol.shared.error.NotFoundException;
 import java.sql.SQLException;
 import java.time.OffsetDateTime;
@@ -73,16 +72,32 @@ class ImplementServiceTest {
     }
 
     @Test
-    void crearDebeRetornarConflictSiNombreDuplicadoPorConstraintUnico() {
+    void crearDebeFallarConBadRequestSiNombreActivoYaExiste() {
+        when(repository.existsActiveByNameIgnoreCase("Guantes")).thenReturn(true);
+
+        BadRequestException ex = assertThrows(BadRequestException.class, () -> service.crear("Guantes", null, null, 10));
+
+        assertEquals("IMPLEMENT_NAME_DUPLICATE", ex.getCode());
+        assertEquals("Ya existe un producto con el nombre 'Guantes'", ex.getMessage());
+        verify(repository, never()).create(
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any()
+        );
+    }
+
+    @Test
+    void crearDebeRetornarBadRequestSiNombreDuplicadoPorConstraintUnico() {
         when(repository.create("Guantes", null, null, 10)).thenThrow(new DataIntegrityViolationException(
                 "unique violation",
                 new SQLException("duplicate key", "23505")
         ));
 
-        ConflictException ex = assertThrows(ConflictException.class, () -> service.crear("Guantes", null, null, 10));
+        BadRequestException ex = assertThrows(BadRequestException.class, () -> service.crear("Guantes", null, null, 10));
 
         assertEquals("IMPLEMENT_NAME_DUPLICATE", ex.getCode());
-        assertEquals("Ya existe un implemento con el nombre 'Guantes'", ex.getMessage());
+        assertEquals("Ya existe un producto con el nombre 'Guantes'", ex.getMessage());
     }
 
     @Test
@@ -105,5 +120,24 @@ class ImplementServiceTest {
         assertEquals(2, result.categoriaId());
         verify(categoriaService).validarCategoriaActivaParaImplemento(2);
         verify(locationService).validarLocationExistente(10);
+    }
+
+    @Test
+    void editarDebeFallarConBadRequestSiNombreActivoExisteEnOtroImplemento() {
+        Implemento existing = new Implemento(10, "Existente", null, null, 10, true, OffsetDateTime.now(), OffsetDateTime.now());
+        when(repository.findById(10)).thenReturn(Optional.of(existing));
+        when(repository.existsActiveByNameIgnoreCaseAndIdNot("Guantes", 10)).thenReturn(true);
+
+        BadRequestException ex = assertThrows(BadRequestException.class, () -> service.editar(10, "Guantes", null, null, 10));
+
+        assertEquals("IMPLEMENT_NAME_DUPLICATE", ex.getCode());
+        assertEquals("Ya existe un producto con el nombre 'Guantes'", ex.getMessage());
+        verify(repository, never()).update(
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any()
+        );
     }
 }

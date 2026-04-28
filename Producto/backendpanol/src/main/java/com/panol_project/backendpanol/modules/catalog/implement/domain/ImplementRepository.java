@@ -9,6 +9,10 @@ public interface ImplementRepository {
 
     List<ImplementSummary> findAllSummaries();
 
+    boolean existsActiveByNameIgnoreCase(String nombre);
+
+    boolean existsActiveByNameIgnoreCaseAndIdNot(String nombre, Integer excludedId);
+
     Implemento create(String nombre, String descripcion, Integer categoriaId, Integer locationId);
 
     Implemento update(Integer id, String nombre, String descripcion, Integer categoriaId, Integer locationId);

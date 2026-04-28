@@ -11,9 +11,11 @@ import com.panol_project.backendpanol.modules.catalog.implement.domain.Implement
 import com.panol_project.backendpanol.modules.catalog.implement.domain.ImplementSummary;
 import com.panol_project.backendpanol.modules.catalog.implement.domain.Implemento;
 import java.time.OffsetDateTime;
+import java.util.Locale;
 import java.util.List;
 import java.util.Optional;
 import org.jooq.DSLContext;
+import org.jooq.impl.DSL;
 import org.springframework.stereotype.Repository;
 
 @Repository
@@ -70,6 +72,27 @@ public class ImplementJooqRepository implements ImplementRepository {
                             )
                     );
                 });
+    }
+
+    @Override
+    public boolean existsActiveByNameIgnoreCase(String nombre) {
+        return dsl.fetchExists(
+                dsl.selectOne()
+                        .from(IMPLEMENT)
+                        .where(IMPLEMENT.ACTIVE.isTrue()
+                                .and(DSL.lower(IMPLEMENT.NAME).eq(nombre.toLowerCase(Locale.ROOT))))
+        );
+    }
+
+    @Override
+    public boolean existsActiveByNameIgnoreCaseAndIdNot(String nombre, Integer excludedId) {
+        return dsl.fetchExists(
+                dsl.selectOne()
+                        .from(IMPLEMENT)
+                        .where(IMPLEMENT.ACTIVE.isTrue()
+                                .and(IMPLEMENT.ID.ne(excludedId))
+                                .and(DSL.lower(IMPLEMENT.NAME).eq(nombre.toLowerCase(Locale.ROOT))))
+        );
     }
 
     @Override

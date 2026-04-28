@@ -5,7 +5,7 @@ import com.panol_project.backendpanol.modules.catalog.implement.domain.Implement
 import com.panol_project.backendpanol.modules.catalog.implement.domain.ImplementSummary;
 import com.panol_project.backendpanol.modules.catalog.implement.domain.Implemento;
 import com.panol_project.backendpanol.modules.catalog.location.application.LocationService;
-import com.panol_project.backendpanol.shared.error.ConflictException;
+import com.panol_project.backendpanol.shared.error.BadRequestException;
 import com.panol_project.backendpanol.shared.error.NotFoundException;
 import java.util.List;
 import java.sql.SQLException;
@@ -36,15 +36,13 @@ public class ImplementService {
         locationService.validarLocationExistente(locationId);
         String normalizedName = normalizeNombre(nombre);
         String normalizedDescription = normalizeDescripcion(descripcion);
+        validateUniqueActiveNameForCreate(normalizedName);
 
         try {
             return repository.create(normalizedName, normalizedDescription, categoriaId, locationId);
         } catch (DataIntegrityViolationException ex) {
             if (isUniqueViolation(ex)) {
-                throw new ConflictException(
-                        "IMPLEMENT_NAME_DUPLICATE",
-                        "Ya existe un implemento con el nombre '" + normalizedName + "'"
-                );
+                throw duplicateNameException(normalizedName);
             }
             throw ex;
         }
@@ -57,15 +55,13 @@ public class ImplementService {
         locationService.validarLocationExistente(locationId);
         String normalizedName = normalizeNombre(nombre);
         String normalizedDescription = normalizeDescripcion(descripcion);
+        validateUniqueActiveNameForUpdate(normalizedName, id);
 
         try {
             return repository.update(id, normalizedName, normalizedDescription, categoriaId, locationId);
         } catch (DataIntegrityViolationException ex) {
             if (isUniqueViolation(ex)) {
-                throw new ConflictException(
-                        "IMPLEMENT_NAME_DUPLICATE",
-                        "Ya existe un implemento con el nombre '" + normalizedName + "'"
-                );
+                throw duplicateNameException(normalizedName);
             }
             throw ex;
         }
@@ -96,6 +92,25 @@ public class ImplementService {
         }
         String normalized = descripcion.trim();
         return normalized.isEmpty() ? null : normalized;
+    }
+
+    private void validateUniqueActiveNameForCreate(String normalizedName) {
+        if (repository.existsActiveByNameIgnoreCase(normalizedName)) {
+            throw duplicateNameException(normalizedName);
+        }
+    }
+
+    private void validateUniqueActiveNameForUpdate(String normalizedName, Integer id) {
+        if (repository.existsActiveByNameIgnoreCaseAndIdNot(normalizedName, id)) {
+            throw duplicateNameException(normalizedName);
+        }
+    }
+
+    private BadRequestException duplicateNameException(String normalizedName) {
+        return new BadRequestException(
+                "IMPLEMENT_NAME_DUPLICATE",
+                "Ya existe un producto con el nombre '" + normalizedName + "'"
+        );
     }
 
     private boolean isUniqueViolation(Throwable throwable) {
