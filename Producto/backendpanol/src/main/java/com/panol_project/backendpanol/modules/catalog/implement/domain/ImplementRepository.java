@@ -7,8 +7,6 @@ public interface ImplementRepository {
 
     Optional<Implemento> findById(Integer id);
 
-    Optional<Integer> findMinStockByImplementId(Integer implementId);
-
     List<ImplementSummary> findAllSummaries();
 
     boolean existsActiveByNameIgnoreCase(String nombre);
