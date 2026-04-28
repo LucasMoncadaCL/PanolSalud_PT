@@ -138,10 +138,21 @@ public class ImplementJooqRepository implements ImplementRepository {
 
     @Override
     public int updateMinStockByImplementId(Integer implementId, Integer minStock) {
-        return dsl.update(STOCK)
+        return dsl.insertInto(STOCK)
+                .set(STOCK.IMPLEMENT_ID, implementId)
                 .set(STOCK.MIN_STOCK, minStock)
-                .where(STOCK.IMPLEMENT_ID.eq(implementId))
+                .onConflict(STOCK.IMPLEMENT_ID)
+                .doUpdate()
+                .set(STOCK.MIN_STOCK, minStock)
                 .execute();
+    }
+
+    @Override
+    public Optional<Integer> findMinStockByImplementId(Integer implementId) {
+        return dsl.select(STOCK.MIN_STOCK)
+                .from(STOCK)
+                .where(STOCK.IMPLEMENT_ID.eq(implementId))
+                .fetchOptional(STOCK.MIN_STOCK);
     }
 
     private Implemento toDomain(ImplementRecord record) {

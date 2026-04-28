@@ -44,7 +44,7 @@ public class ImplementController {
                 request.minStock(),
                 request.observations()
         );
-        return toResponse(created, request.minStock(), request.observations());
+        return toResponse(created, service.obtenerMinStock(created.id()), request.observations());
     }
 
     @PutMapping("/{id}")
@@ -54,7 +54,8 @@ public class ImplementController {
 
     @GetMapping("/{id}")
     ImplementResponse obtener(@PathVariable Integer id) {
-        return toResponse(service.obtener(id));
+        Implemento implemento = service.obtener(id);
+        return toResponse(implemento, service.obtenerMinStock(id), null);
     }
 
     @GetMapping

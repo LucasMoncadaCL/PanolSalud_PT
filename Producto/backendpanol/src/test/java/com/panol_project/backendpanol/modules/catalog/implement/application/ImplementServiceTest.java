@@ -129,20 +129,6 @@ class ImplementServiceTest {
     }
 
     @Test
-    void crearDebeFallarSiNoSeEncuentraStockAsociado() {
-        OffsetDateTime now = OffsetDateTime.now();
-        Implemento created = new Implemento(1, "Guantes", null, 5, 10, ImplementItemType.CONSUMABLE, true, now, now);
-
-        when(repository.create("Guantes", null, 5, 10, ImplementItemType.CONSUMABLE, null)).thenReturn(created);
-        when(repository.updateMinStockByImplementId(1, 2)).thenReturn(0);
-
-        BadRequestException ex = assertThrows(BadRequestException.class, () ->
-                service.crear("Guantes", null, 5, 10, "consumable", 2, null));
-
-        assertEquals("IMPLEMENT_STOCK_NOT_FOUND", ex.getCode());
-    }
-
-    @Test
     void editarDebeFallarSiImplementoNoExiste() {
         when(repository.findById(10)).thenReturn(Optional.empty());
 
