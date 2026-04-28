@@ -16,7 +16,7 @@ Se incorporaron los nuevos campos del caso de uso:
 - `min_stock` (obligatorio, entero positivo)
 - `observations` (opcional)
 
-El stock inicial (`total_stock`, `available`, etc.) se mantiene en `0` por trigger de BD. Luego de crear el implemento, el backend actualiza `stock.min_stock` con el valor enviado en el request.
+El stock se maneja mediante la tabla `public.stock` (1 fila por implemento). Por ahora el backend solo gestiona el campo `min_stock`; el resto del stock (`total_stock`, `available`, etc.) queda en `0` (por defecto/trigger segun el entorno). Luego de crear el implemento, el backend hace un upsert para dejar `stock.min_stock` con el valor enviado en el request.
 
 ## Alcance funcional
 
@@ -49,7 +49,7 @@ Cuando falta `location_id`, el backend responde `400` con mensaje de validacion:
 1. Categoria debe existir y estar activa.
 2. Nombre unico de producto (case-insensitive) sobre implementos activos (validacion previa + fallback por constraint unico).
 3. `item_type` se normaliza a enum de dominio (`consumable|reusable|individual`).
-4. Si no existe fila de `stock` tras crear el implemento, se responde error de negocio controlado.
+4. Se asegura existencia de `stock` por implemento mediante upsert (`INSERT ... ON CONFLICT (implement_id) DO UPDATE`) al persistir `min_stock`.
 
 ## Cambios tecnicos
 
@@ -75,7 +75,7 @@ Cuando falta `location_id`, el backend responde `400` con mensaje de validacion:
   - `updateMinStockByImplementId(...)`
 - `ImplementJooqRepository`:
   - persiste `item_type` y `observations` en `implement`.
-  - actualiza `stock.min_stock`.
+  - realiza upsert de `stock.min_stock` por `implement_id`.
 
 ### Migracion de BD
 

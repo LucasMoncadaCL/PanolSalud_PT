@@ -44,7 +44,7 @@ public class ImplementController {
                 request.minStock(),
                 request.observations()
         );
-        return toResponse(created, request.minStock(), request.observations());
+        return toResponse(created, service.obtenerStockMinimo(created.id()), request.observations());
     }
 
     @PutMapping("/{id}")

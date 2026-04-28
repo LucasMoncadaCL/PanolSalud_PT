@@ -58,13 +58,7 @@ public class ImplementService {
                     normalizedItemType,
                     normalizedObservations
             );
-            int updatedStocks = repository.updateMinStockByImplementId(created.id(), minStock);
-            if (updatedStocks == 0) {
-                throw new BadRequestException(
-                        "IMPLEMENT_STOCK_NOT_FOUND",
-                        "No se encontro stock asociado al implemento creado"
-                );
-            }
+            repository.updateMinStockByImplementId(created.id(), minStock);
             return created;
         } catch (DataIntegrityViolationException ex) {
             if (isUniqueViolation(ex)) {
