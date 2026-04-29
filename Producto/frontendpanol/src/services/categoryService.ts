@@ -15,10 +15,21 @@ export async function fetchCategoriasGestion(): Promise<Categoria[]> {
 export async function fetchCategoriaAssociation(
   categoryId: number,
 ): Promise<CategoriaAssociationSummary> {
-  const response = await apiClient.get<CategoriaAssociationSummary>(
+  const response = await apiClient.get<{
+    categoriaId?: number;
+    categoryId?: number;
+    implementosAsociados?: number;
+    implementCount?: number;
+    canDelete: boolean;
+  }>(
     `${basePath}/${categoryId}/asociaciones`,
   );
-  return response.data;
+
+  return {
+    categoryId: response.data.categoryId ?? response.data.categoriaId ?? categoryId,
+    implementCount: response.data.implementCount ?? response.data.implementosAsociados ?? 0,
+    canDelete: response.data.canDelete,
+  };
 }
 
 export async function createCategoria(payload: CategoriaPayload): Promise<Categoria> {

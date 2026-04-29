@@ -17,6 +17,9 @@ export interface ImplementUpdatePayload {
 export interface ImplementSummary {
   id: number;
   name: string;
+  description?: string | null;
+  active?: boolean;
+  available?: boolean;
   category: {
     id: number;
     name: string;
@@ -27,6 +30,22 @@ export interface ImplementSummary {
     name: string;
     description: string | null;
   } | null;
+  stock?: {
+    total_stock?: number | null;
+    min_stock?: number | null;
+    available?: number | null;
+    reserved?: number | null;
+    loaned?: number | null;
+    damaged?: number | null;
+  } | null;
+}
+
+export type ImplementStockFilterStatus = "all" | "with_stock" | "without_stock" | "low_stock";
+
+export interface ImplementFilters {
+  name?: string;
+  categoryId?: number | null;
+  stockStatus?: ImplementStockFilterStatus;
 }
 
 export interface ImplementDetail {

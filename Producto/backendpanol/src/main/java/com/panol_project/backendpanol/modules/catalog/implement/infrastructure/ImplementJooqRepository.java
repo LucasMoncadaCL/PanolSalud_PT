@@ -12,12 +12,14 @@ import com.panol_project.backendpanol.modules.catalog.implement.domain.Implement
 import com.panol_project.backendpanol.modules.catalog.implement.domain.ImplementCategorySummary;
 import com.panol_project.backendpanol.modules.catalog.implement.domain.ImplementLocationSummary;
 import com.panol_project.backendpanol.modules.catalog.implement.domain.ImplementSummary;
+import com.panol_project.backendpanol.modules.catalog.implement.domain.ImplementStockSummary;
 import com.panol_project.backendpanol.modules.catalog.implement.domain.Implemento;
 import java.time.OffsetDateTime;
 import java.util.Locale;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import org.jooq.Condition;
 import org.jooq.DSLContext;
 import org.jooq.impl.DSL;
 import org.springframework.stereotype.Repository;
@@ -48,27 +50,46 @@ public class ImplementJooqRepository implements ImplementRepository {
     }
 
     @Override
-    public List<ImplementSummary> findAllSummaries() {
+    public List<ImplementSummary> findAllSummaries(String name, Integer categoryId) {
+        Condition condition = IMPLEMENT.ACTIVE.isTrue();
+
+        if (name != null) {
+            condition = condition.and(DSL.lower(IMPLEMENT.NAME).like("%" + name.toLowerCase(Locale.ROOT) + "%"));
+        }
+
+        if (categoryId != null) {
+            condition = condition.and(IMPLEMENT.CATEGORY_ID.eq(categoryId));
+        }
         return dsl.select(
                         IMPLEMENT.ID,
                         IMPLEMENT.NAME,
+                        IMPLEMENT.DESCRIPTION,
+                        IMPLEMENT.ACTIVE,
                         CATEGORY.ID,
                         CATEGORY.NAME,
                         CATEGORY.ACTIVE,
                         LOCATION.ID,
                         LOCATION.NAME,
-                        LOCATION.DESCRIPTION
+                        LOCATION.DESCRIPTION,
+                        STOCK.TOTAL_STOCK,
+                        STOCK.MIN_STOCK,
+                        STOCK.AVAILABLE,
+                        STOCK.RESERVED,
+                        STOCK.LOANED,
+                        STOCK.DAMAGED
                 )
                 .from(IMPLEMENT)
                 .leftJoin(CATEGORY).on(CATEGORY.ID.eq(IMPLEMENT.CATEGORY_ID))
                 .join(LOCATION).on(LOCATION.ID.eq(IMPLEMENT.LOCATION_ID))
-                .orderBy(IMPLEMENT.ID.asc())
+                .leftJoin(STOCK).on(STOCK.IMPLEMENT_ID.eq(IMPLEMENT.ID))
+                .where(condition)
+                .orderBy(IMPLEMENT.NAME.asc())
                 .fetch(record -> {
-                    Integer categoryId = record.get(CATEGORY.ID);
-                    ImplementCategorySummary category = categoryId == null
+                    Integer summaryCategoryId = record.get(CATEGORY.ID);
+                    ImplementCategorySummary category = summaryCategoryId == null
                             ? null
                             : new ImplementCategorySummary(
-                                    categoryId,
+                                    summaryCategoryId,
                                     record.get(CATEGORY.NAME),
                                     record.get(CATEGORY.ACTIVE)
                             );
@@ -76,11 +97,21 @@ public class ImplementJooqRepository implements ImplementRepository {
                     return new ImplementSummary(
                             record.get(IMPLEMENT.ID),
                             record.get(IMPLEMENT.NAME),
+                            record.get(IMPLEMENT.DESCRIPTION),
+                            record.get(IMPLEMENT.ACTIVE),
                             category,
                             new ImplementLocationSummary(
                                     record.get(LOCATION.ID),
                                     record.get(LOCATION.NAME),
                                     record.get(LOCATION.DESCRIPTION)
+                            ),
+                            new ImplementStockSummary(
+                                    record.get(STOCK.TOTAL_STOCK),
+                                    record.get(STOCK.MIN_STOCK),
+                                    record.get(STOCK.AVAILABLE),
+                                    record.get(STOCK.RESERVED),
+                                    record.get(STOCK.LOANED),
+                                    record.get(STOCK.DAMAGED)
                             )
                     );
                 });

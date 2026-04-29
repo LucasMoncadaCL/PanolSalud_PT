@@ -104,8 +104,11 @@ public class ImplementService {
     }
 
     @Transactional(readOnly = true)
-    public List<ImplementSummary> listar() {
-        return repository.findAllSummaries();
+    public List<ImplementSummary> listar(String name, Integer categoryId) {
+        return repository.findAllSummaries(
+                normalizeFiltroNombre(name),
+                categoryId
+        );
     }
 
     private Implemento requireImplement(Integer id) {
@@ -130,6 +133,14 @@ public class ImplementService {
             return null;
         }
         String normalized = observations.trim();
+        return normalized.isEmpty() ? null : normalized;
+    }
+
+    private String normalizeFiltroNombre(String nombre) {
+        if (nombre == null) {
+            return null;
+        }
+        String normalized = nombre.trim();
         return normalized.isEmpty() ? null : normalized;
     }
 

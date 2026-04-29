@@ -1,0 +1,98 @@
+name: Docker Image Build
+
+on:
+  pull_request:
+
+jobs:
+  docker-build:
+    name: Build Docker Images
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: panol_ci
+          POSTGRES_PASSWORD: panol_ci
+          POSTGRES_DB: panol_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U panol_ci -d panol_ci"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Initialize schema for jOOQ codegen
+        env:
+          PGPASSWORD: panol_ci
+        run: |
+          psql -h 127.0.0.1 -U panol_ci -d panol_ci <<'SQL'
+          CREATE TYPE item_type_enum AS ENUM ('consumable','reusable','individual');
+
+          CREATE TABLE IF NOT EXISTS category (
+            id SERIAL PRIMARY KEY,
+            name VARCHAR(150) NOT NULL UNIQUE,
+            description TEXT,
+            active BOOLEAN NOT NULL DEFAULT TRUE,
+            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+          );
+
+          CREATE TABLE IF NOT EXISTS location (
+            id SERIAL PRIMARY KEY,
+            name VARCHAR(150) NOT NULL,
+            description TEXT
+          );
+
+          CREATE TABLE IF NOT EXISTS implement (
+            id SERIAL PRIMARY KEY,
+            name VARCHAR(150) NOT NULL UNIQUE,
+            description TEXT,
+            category_id INTEGER REFERENCES category(id),
+            location_id INTEGER REFERENCES location(id),
+            item_type item_type_enum NOT NULL DEFAULT 'reusable',
+            barcode VARCHAR(100),
+            img_url TEXT,
+            active BOOLEAN NOT NULL DEFAULT TRUE,
+            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            observations VARCHAR(255)
+          );
+
+          CREATE TABLE IF NOT EXISTS stock (
+            id SERIAL PRIMARY KEY,
+            implement_id INTEGER NOT NULL UNIQUE REFERENCES implement(id),
+            total_stock INTEGER NOT NULL DEFAULT 0,
+            min_stock INTEGER NOT NULL DEFAULT 0,
+            available INTEGER NOT NULL DEFAULT 0,
+            reserved INTEGER NOT NULL DEFAULT 0,
+            loaned INTEGER NOT NULL DEFAULT 0,
+            damaged INTEGER NOT NULL DEFAULT 0,
+            updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+          );
+          SQL
+
+      - name: Build backend image
+        run: |
+          docker build \
+            --add-host=host.docker.internal:host-gateway \
+            --build-arg JOOQ_DB_URL=jdbc:postgresql://host.docker.internal:5432/panol_ci \
+            --build-arg JOOQ_DB_USER=panol_ci \
+            --build-arg JOOQ_DB_PASSWORD=panol_ci \
+            -t backendpanol:ci \
+            ./Producto/backendpanol
+
+      - name: Build frontend image
+        run: |
+          docker build \
+            -t frontendpanol:ci \
+            ./Producto/frontendpanol
+

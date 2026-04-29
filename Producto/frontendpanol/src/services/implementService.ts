@@ -2,12 +2,18 @@ import { apiClient } from "./apiClient";
 import type {
   ImplementCreatePayload,
   ImplementDetail,
+  ImplementFilters,
   ImplementSummary,
   ImplementUpdatePayload,
 } from "../types/implement";
 
-export async function fetchImplements(): Promise<ImplementSummary[]> {
-  const response = await apiClient.get<ImplementSummary[]>("/api/implements");
+export async function fetchImplements(filters?: ImplementFilters): Promise<ImplementSummary[]> {
+  const response = await apiClient.get<ImplementSummary[]>("/api/implements", {
+    params: {
+      name: filters?.name || undefined,
+      categoryId: filters?.categoryId ?? undefined,
+    },
+  });
   return response.data;
 }
 
