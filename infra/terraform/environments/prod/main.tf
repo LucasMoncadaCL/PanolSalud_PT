@@ -1,5 +1,5 @@
 locals {
-  env_suffix = var.environment
+  env_suffix      = var.environment
   frontend_origin = var.frontend_domain != "" ? "https://${var.frontend_domain}" : "https://panol-frontend-${local.env_suffix}-${data.google_project.current.number}.${var.region}.run.app"
 
   common_labels = {
