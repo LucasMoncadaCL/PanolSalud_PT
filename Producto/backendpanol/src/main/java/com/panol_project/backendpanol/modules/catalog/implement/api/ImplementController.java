@@ -144,6 +144,7 @@ public class ImplementController {
             Integer minStock,
             String observations
     ) {
+        String displayLocation = summary == null ? null : service.resolveDisplayLocation(summary);
         return new ImplementResponse(
                 implemento.id(),
                 implemento.nombre(),
@@ -163,6 +164,7 @@ public class ImplementController {
                                 summary.location().name(),
                                 summary.location().description()
                         ),
+                displayLocation,
                 implemento.categoriaId(),
                 implemento.locationId(),
                 minStock,

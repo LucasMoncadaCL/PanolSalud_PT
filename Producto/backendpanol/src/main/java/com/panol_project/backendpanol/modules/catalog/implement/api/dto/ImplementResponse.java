@@ -11,6 +11,8 @@ public record ImplementResponse(
         String itemType,
         ImplementCategorySummaryResponse category,
         ImplementLocationSummaryResponse location,
+        @JsonProperty("display_location")
+        String displayLocation,
         Integer categoryId,
         Integer locationId,
         @JsonProperty("min_stock")

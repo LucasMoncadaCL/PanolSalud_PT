@@ -123,6 +123,19 @@ public class ImplementService {
                 .orElseThrow(() -> new NotFoundException("IMPLEMENT_NOT_FOUND", "Implemento no encontrado"));
     }
 
+    public String resolveDisplayLocation(ImplementSummary summary) {
+        if (summary == null || summary.location() == null) {
+            return null;
+        }
+
+        Integer loaned = summary.stock() == null ? null : summary.stock().loaned();
+        if (loaned != null && loaned > 0) {
+            return "Prestado";
+        }
+
+        return summary.location().name();
+    }
+
     @Transactional(readOnly = true)
     public Integer obtenerStockMinimo(Integer implementId) {
         return repository.findMinStockByImplementId(implementId).orElse(null);
