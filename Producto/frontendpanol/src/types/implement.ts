@@ -57,6 +57,7 @@ export interface ImplementDetail {
   name: string;
   description: string | null;
   item_type: "consumable" | "reusable" | "individual" | null;
+  display_location?: string | null;
   category: {
     id: number;
     name: string;
