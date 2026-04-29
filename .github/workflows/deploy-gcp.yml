@@ -134,6 +134,16 @@ jobs:
           printf "%s" "$JWT_ISSUER_URI" | gcloud secrets versions add JWT_ISSUER_URI --project "$GCP_PROJECT_ID" --data-file=-
           printf "%s" "$VITE_SUPABASE_PUBLISHABLE_KEY" | gcloud secrets versions add VITE_SUPABASE_PUBLISHABLE_KEY --project "$GCP_PROJECT_ID" --data-file=-
 
+      - name: Generate jOOQ sources (backend)
+        working-directory: Producto/backendpanol
+        env:
+          JOOQ_DB_URL: jdbc:postgresql://${{ vars.SUPABASE_DB_HOST_DEV }}:${{ vars.SUPABASE_DB_PORT_DEV }}/${{ vars.SUPABASE_DB_NAME_DEV }}?sslmode=require
+          JOOQ_DB_USER: ${{ vars.SUPABASE_DB_USER_DEV }}
+          JOOQ_DB_PASSWORD: ${{ secrets.DB_SUPABASE_PASSWORD_DEV }}
+        run: |
+          chmod +x ./mvnw
+          ./mvnw -q -DskipTests generate-sources
+
       - name: Build backend image
         run: |
           docker build \
