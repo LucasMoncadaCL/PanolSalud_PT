@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { InventoryLayout } from "../components/layout/InventoryLayout";
 import { getErrorMessage } from "../services/apiClient";
-import { fetchImplementById, fetchImplements } from "../services/implementService";
-import type { ImplementDetail, ImplementSummary } from "../types/implement";
+import { fetchImplementById } from "../services/implementService";
+import type { ImplementDetail } from "../types/implement";
 
 const ITEM_TYPE_LABELS: Record<"consumable" | "reusable" | "individual", string> = {
   consumable: "Consumible",
@@ -12,7 +12,6 @@ const ITEM_TYPE_LABELS: Record<"consumable" | "reusable" | "individual", string>
 
 export function InventoryItemDetailPage({ implementId }: { implementId: number }) {
   const [implement, setImplement] = useState<ImplementDetail | null>(null);
-  const [catalog, setCatalog] = useState<ImplementSummary[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showInitialStockHint, setShowInitialStockHint] = useState(false);
@@ -21,11 +20,8 @@ export function InventoryItemDetailPage({ implementId }: { implementId: number }
     setLoading(true);
     setError(null);
 
-    Promise.all([fetchImplementById(implementId), fetchImplements()])
-      .then(([detail, items]) => {
-        setImplement(detail);
-        setCatalog(items);
-      })
+    fetchImplementById(implementId)
+      .then((detail) => setImplement(detail))
       .catch((requestError) => {
         setError(getErrorMessage(requestError, "No se pudo cargar la ficha del producto."));
       })
@@ -46,36 +42,31 @@ export function InventoryItemDetailPage({ implementId }: { implementId: number }
     }
   }, [implementId]);
 
-  const summaryMatch = useMemo(
-    () => catalog.find((row) => row.id === implementId) ?? null,
-    [catalog, implementId],
-  );
-
-  const categoryLabel = useMemo(() => {
+  const categoryView = useMemo(() => {
     if (!implement) {
-      return "-";
+      return { text: "-", inactive: false, muted: false };
     }
-    if (summaryMatch?.category) {
-      return `${summaryMatch.category.name}${summaryMatch.category.active ? "" : " [Inactiva]"}`;
+
+    if (implement.category) {
+      return {
+        text: implement.category.name,
+        inactive: !implement.category.active,
+        muted: false,
+      };
     }
-    if (implement.categoryId) {
-      return `Categoria #${implement.categoryId}`;
-    }
-    return "Sin categoria";
-  }, [implement, summaryMatch]);
+
+    return { text: "Sin categoria", inactive: false, muted: true };
+  }, [implement]);
 
   const locationLabel = useMemo(() => {
     if (!implement) {
       return "-";
     }
-    if (summaryMatch?.location) {
-      return summaryMatch.location.name;
-    }
     if (implement.locationId) {
       return `Ubicacion #${implement.locationId}`;
     }
     return "Sin ubicacion";
-  }, [implement, summaryMatch]);
+  }, [implement]);
 
   return (
     <InventoryLayout activeSection="items">
@@ -105,7 +96,9 @@ export function InventoryItemDetailPage({ implementId }: { implementId: number }
             <article className="detail-card">
               <h3>Atributos</h3>
               <p>
-                <strong>Categoria:</strong> {categoryLabel}
+                <strong>Categoria:</strong>{" "}
+                <span className={categoryView.muted ? "text-muted" : undefined}>{categoryView.text}</span>{" "}
+                {categoryView.inactive ? <span className="badge badge--inactive">[Inactiva]</span> : null}
               </p>
               <p>
                 <strong>Tipo:</strong>{" "}

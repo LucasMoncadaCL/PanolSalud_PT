@@ -48,21 +48,23 @@ public class ImplementController {
                 request.minStock(),
                 request.observations()
         );
-        return toResponse(created, service.obtenerStockMinimo(created.id()), request.observations());
+        // No resolvemos categoria aqui: la UI se apoya en GET /api/implements/{id} para la ficha.
+        return toResponse(created, null, service.obtenerStockMinimo(created.id()), request.observations());
     }
 
     @PutMapping("/{id}")
     ImplementResponse editar(@PathVariable Integer id, @Valid @RequestBody UpdateImplementRequest request) {
         Implemento updated = service.editar(id, request.name(), request.description(), request.categoryId(), request.locationId());
         Integer minStock = service.obtenerStockMinimo(updated.id());
-        return toResponse(updated, minStock, null);
+        return toResponse(updated, null, minStock, null);
     }
 
     @GetMapping("/{id}")
     ImplementResponse obtener(@PathVariable Integer id) {
         Implemento implemento = service.obtener(id);
+        var summary = service.obtenerSummary(id);
         Integer minStock = service.obtenerStockMinimo(implemento.id());
-        return toResponse(implemento, minStock, null);
+        return toResponse(implemento, summary, minStock, null);
     }
 
     @GetMapping
@@ -118,15 +120,28 @@ public class ImplementController {
     }
 
     private ImplementResponse toResponse(Implemento implemento) {
-        return toResponse(implemento, null, null);
+        // Para create/update no necesitamos resolver categoria (la ficha la vuelve a consultar por GET).
+        return toResponse(implemento, null, null, null);
     }
 
-    private ImplementResponse toResponse(Implemento implemento, Integer minStock, String observations) {
+    private ImplementResponse toResponse(
+            Implemento implemento,
+            com.panol_project.backendpanol.modules.catalog.implement.domain.ImplementSummary summary,
+            Integer minStock,
+            String observations
+    ) {
         return new ImplementResponse(
                 implemento.id(),
                 implemento.nombre(),
                 implemento.descripcion(),
                 implemento.itemType() == null ? null : implemento.itemType().literal(),
+                summary == null || summary.category() == null
+                        ? null
+                        : new ImplementCategorySummaryResponse(
+                                summary.category().id(),
+                                summary.category().name(),
+                                summary.category().active()
+                        ),
                 implemento.categoriaId(),
                 implemento.locationId(),
                 minStock,

@@ -53,6 +53,11 @@ export interface ImplementDetail {
   name: string;
   description: string | null;
   item_type: "consumable" | "reusable" | "individual" | null;
+  category: {
+    id: number;
+    name: string;
+    active: boolean;
+  } | null;
   categoryId: number | null;
   locationId: number | null;
   min_stock: number | null;

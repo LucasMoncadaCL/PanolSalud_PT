@@ -509,6 +509,10 @@ textarea {
   font-weight: 700;
 }
 
+.text-muted {
+  color: var(--text-soft);
+}
+
 .field-error {
   color: #b1354a;
   font-size: 0.85rem;

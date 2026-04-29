@@ -93,6 +93,13 @@ public class ImplementService {
     }
 
     @Transactional(readOnly = true)
+    public ImplementSummary obtenerSummary(Integer id) {
+        // Reusa el join que ya existe para el listado para resolver categoria y ubicacion (incluyendo inactivas).
+        return repository.findSummaryById(id)
+                .orElseThrow(() -> new NotFoundException("IMPLEMENT_NOT_FOUND", "Implemento no encontrado"));
+    }
+
+    @Transactional(readOnly = true)
     public Integer obtenerStockMinimo(Integer implementId) {
         return repository.findMinStockByImplementId(implementId).orElse(null);
     }

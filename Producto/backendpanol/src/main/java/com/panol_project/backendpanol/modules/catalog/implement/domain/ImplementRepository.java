@@ -7,6 +7,8 @@ public interface ImplementRepository {
 
     Optional<Implemento> findById(Integer id);
 
+    Optional<ImplementSummary> findSummaryById(Integer id);
+
     List<ImplementSummary> findAllSummaries(String name, Integer categoryId);
 
     boolean existsActiveByNameIgnoreCase(String nombre);

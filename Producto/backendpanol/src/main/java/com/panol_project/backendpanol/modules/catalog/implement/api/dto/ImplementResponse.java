@@ -9,6 +9,7 @@ public record ImplementResponse(
         String description,
         @JsonProperty("item_type")
         String itemType,
+        ImplementCategorySummaryResponse category,
         Integer categoryId,
         Integer locationId,
         @JsonProperty("min_stock")

@@ -42,6 +42,45 @@ public class ImplementJooqRepository implements ImplementRepository {
     }
 
     @Override
+    public Optional<ImplementSummary> findSummaryById(Integer id) {
+        return dsl.select(
+                        IMPLEMENT.ID,
+                        IMPLEMENT.NAME,
+                        CATEGORY.ID,
+                        CATEGORY.NAME,
+                        CATEGORY.ACTIVE,
+                        LOCATION.ID,
+                        LOCATION.NAME,
+                        LOCATION.DESCRIPTION
+                )
+                .from(IMPLEMENT)
+                .leftJoin(CATEGORY).on(CATEGORY.ID.eq(IMPLEMENT.CATEGORY_ID))
+                .join(LOCATION).on(LOCATION.ID.eq(IMPLEMENT.LOCATION_ID))
+                .where(IMPLEMENT.ID.eq(id))
+                .fetchOptional(record -> {
+                    Integer categoryId = record.get(CATEGORY.ID);
+                    ImplementCategorySummary category = categoryId == null
+                            ? null
+                            : new ImplementCategorySummary(
+                                    categoryId,
+                                    record.get(CATEGORY.NAME),
+                                    record.get(CATEGORY.ACTIVE)
+                            );
+
+                    return new ImplementSummary(
+                            record.get(IMPLEMENT.ID),
+                            record.get(IMPLEMENT.NAME),
+                            category,
+                            new ImplementLocationSummary(
+                                    record.get(LOCATION.ID),
+                                    record.get(LOCATION.NAME),
+                                    record.get(LOCATION.DESCRIPTION)
+                            )
+                    );
+                });
+    }
+
+    @Override
     public List<ImplementSummary> findAllSummaries(String name, Integer categoryId) {
         Condition condition = IMPLEMENT.ACTIVE.isTrue();
 
@@ -52,6 +91,7 @@ public class ImplementJooqRepository implements ImplementRepository {
         if (categoryId != null) {
             condition = condition.and(IMPLEMENT.CATEGORY_ID.eq(categoryId));
         }
+
         return dsl.select(
                         IMPLEMENT.ID,
                         IMPLEMENT.NAME,
