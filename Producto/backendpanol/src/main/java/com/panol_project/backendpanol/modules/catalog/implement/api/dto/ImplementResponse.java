@@ -23,6 +23,7 @@ public record ImplementResponse(
         String observations,
         Boolean active,
         OffsetDateTime createdAt,
-        OffsetDateTime updatedAt
+        OffsetDateTime updatedAt,
+        ImplementDetailStockResponse stock
 ) {
 }

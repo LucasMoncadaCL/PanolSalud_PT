@@ -1,6 +1,7 @@
 package com.panol_project.backendpanol.modules.catalog.implement.api;
 
 import com.panol_project.backendpanol.modules.catalog.implement.api.dto.CreateImplementRequest;
+import com.panol_project.backendpanol.modules.catalog.implement.api.dto.ImplementDetailStockResponse;
 import com.panol_project.backendpanol.modules.catalog.implement.api.dto.ImplementResponse;
 import com.panol_project.backendpanol.modules.catalog.implement.api.dto.ImplementCategorySummaryResponse;
 import com.panol_project.backendpanol.modules.catalog.implement.api.dto.ImplementLocationSummaryResponse;
@@ -39,7 +40,7 @@ public class ImplementController {
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     @PreAuthorize("hasRole('COORDINADOR')")
-    ImplementResponse crear(@Valid @RequestBody CreateImplementRequest request) {
+    ImplementResponse crear(@Valid @RequestBody CreateImplementRequest request, Authentication authentication) {
         Implemento created = service.crear(
                 request.name(),
                 request.description(),
@@ -53,14 +54,14 @@ public class ImplementController {
         );
       
         var summary = service.obtenerSummary(created.id());
-        return toResponse(created, summary, service.obtenerStockMinimo(created.id()), created.observations());
+        return toResponse(created, summary, service.obtenerStockMinimo(created.id()), created.observations(), authentication);
 
 
     }
 
     @PutMapping("/{id}")
     @PreAuthorize("hasRole('COORDINADOR')")
-    ImplementResponse editar(@PathVariable Integer id, @Valid @RequestBody UpdateImplementRequest request) {
+    ImplementResponse editar(@PathVariable Integer id, @Valid @RequestBody UpdateImplementRequest request, Authentication authentication) {
         Implemento updated = service.editar(
                 id,
                 request.name(),
@@ -75,24 +76,25 @@ public class ImplementController {
         );
         var summary = service.obtenerSummary(updated.id());
         Integer minStock = service.obtenerStockMinimo(updated.id());
-        return toResponse(updated, summary, minStock, updated.observations());
+        return toResponse(updated, summary, minStock, updated.observations(), authentication);
     }
 
     @GetMapping("/{id}")
-    ImplementResponse obtener(@PathVariable Integer id) {
+    @PreAuthorize("hasAnyRole('COORDINADOR','DIRECTOR','DOCENTE')")
+    ImplementResponse obtener(@PathVariable Integer id, Authentication authentication) {
         Implemento implemento = service.obtener(id);
         var summary = service.obtenerSummary(id);
         Integer minStock = service.obtenerStockMinimo(implemento.id());
-        return toResponse(implemento, summary, minStock, implemento.observations());
+        return toResponse(implemento, summary, minStock, implemento.observations(), authentication);
     }
 
     @PatchMapping("/{id}/active")
     @PreAuthorize("hasRole('COORDINADOR')")
-    ImplementResponse setActive(@PathVariable Integer id, @RequestParam boolean active) {
+    ImplementResponse setActive(@PathVariable Integer id, @RequestParam boolean active, Authentication authentication) {
         Implemento updated = service.setActive(id, active);
         var summary = service.obtenerSummary(updated.id());
         Integer minStock = service.obtenerStockMinimo(updated.id());
-        return toResponse(updated, summary, minStock, updated.observations());
+        return toResponse(updated, summary, minStock, updated.observations(), authentication);
     }
 
     @GetMapping
@@ -151,19 +153,47 @@ public class ImplementController {
 
     private ImplementResponse toResponse(Implemento implemento) {
         // Fallback para casos donde no tengamos el summary (idealmente, siempre lo tenemos en GET/POST/PUT).
-        return toResponse(implemento, null, null, null);
+        return toResponse(implemento, null, null, null, null);
     }
 
     private ImplementResponse toResponse(
             Implemento implemento,
             com.panol_project.backendpanol.modules.catalog.implement.domain.ImplementSummary summary,
             Integer minStock,
-            String observations
+            String observations,
+            Authentication authentication
     ) {
         String displayLocation = summary == null ? null : service.resolveDisplayLocation(summary);
         String resolvedBarcode = summary != null ? summary.barcode() : implemento.barcode();
         String resolvedImgUrl = summary != null ? summary.imgUrl() : implemento.imgUrl();
         String resolvedObservations = summary != null ? observations : implemento.observations();
+        
+        ImplementDetailStockResponse stockResponse = null;
+        if (summary != null && summary.stock() != null) {
+            boolean includeStockBreakdown = canViewStockBreakdown(authentication);
+            String availableDisplay = summary.stock().hasAvailability() ? "Disponible" : "No disponible";
+            
+            if (includeStockBreakdown) {
+                stockResponse = new ImplementDetailStockResponse(
+                        summary.stock().totalStock(),
+                        summary.stock().available(),
+                        summary.stock().reserved(),
+                        summary.stock().loaned(),
+                        summary.stock().damaged(),
+                        null
+                );
+            } else {
+                stockResponse = new ImplementDetailStockResponse(
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        availableDisplay
+                );
+            }
+        }
+
         return new ImplementResponse(
                 implemento.id(),
                 implemento.nombre(),
@@ -192,7 +222,8 @@ public class ImplementController {
                 resolvedObservations,
                 implemento.activo(),
                 implemento.createdAt(),
-                implemento.updatedAt()
+                implemento.updatedAt(),
+                stockResponse
         );
     }
 }
