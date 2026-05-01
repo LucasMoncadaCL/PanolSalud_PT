@@ -19,7 +19,7 @@ public class InventoryMovement {
     private Integer quantity;
 
     @Field("performed_by")
-    private String performedBy;
+    private Integer performedBy;
 
     private Instant timestamp;
 
@@ -28,7 +28,7 @@ public class InventoryMovement {
     public InventoryMovement() {
     }
 
-    public InventoryMovement(Integer implementId, MovementAction action, Integer quantity, String performedBy, Instant timestamp, String notes) {
+    public InventoryMovement(Integer implementId, MovementAction action, Integer quantity, Integer performedBy, Instant timestamp, String notes) {
         this.implementId = implementId;
         this.action = action;
         this.quantity = quantity;
@@ -69,11 +69,11 @@ public class InventoryMovement {
         this.quantity = quantity;
     }
 
-    public String getPerformedBy() {
+    public Integer getPerformedBy() {
         return performedBy;
     }
 
-    public void setPerformedBy(String performedBy) {
+    public void setPerformedBy(Integer performedBy) {
         this.performedBy = performedBy;
     }
 

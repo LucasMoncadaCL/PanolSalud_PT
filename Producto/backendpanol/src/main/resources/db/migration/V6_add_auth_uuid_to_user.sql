@@ -1,0 +1,2 @@
+ALTER TABLE "user"
+ADD COLUMN auth_uuid VARCHAR(255) UNIQUE;

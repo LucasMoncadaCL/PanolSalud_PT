@@ -16,7 +16,7 @@ public class InventoryMovementService {
         this.repository = repository;
     }
 
-    public InventoryMovement registrarMovimiento(Integer implementId, MovementAction action, Integer quantity, String performedBy, String notes) {
+    public InventoryMovement registrarMovimiento(Integer implementId, MovementAction action, Integer quantity, Integer performedBy, String notes) {
         InventoryMovement movement = new InventoryMovement(
                 implementId, 
                 action, 

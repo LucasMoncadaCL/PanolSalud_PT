@@ -11,9 +11,11 @@ import com.panol_project.backendpanol.modules.catalog.implement.api.dto.UpdateIm
 import com.panol_project.backendpanol.modules.catalog.implement.application.ImplementService;
 import com.panol_project.backendpanol.modules.catalog.stock.application.InventoryMovementService;
 import com.panol_project.backendpanol.modules.catalog.stock.api.dto.InventoryMovementResponse;
+import com.panol_project.backendpanol.modules.users.application.UserService;
 import com.panol_project.backendpanol.modules.catalog.implement.domain.Implemento;
 import jakarta.validation.Valid;
 import java.util.List;
+import java.util.Map;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
@@ -35,10 +37,16 @@ public class ImplementController {
 
     private final ImplementService service;
     private final InventoryMovementService inventoryMovementService;
+    private final UserService userService;
 
-    public ImplementController(ImplementService service, InventoryMovementService inventoryMovementService) {
+    public ImplementController(
+            ImplementService service, 
+            InventoryMovementService inventoryMovementService,
+            UserService userService
+    ) {
         this.service = service;
         this.inventoryMovementService = inventoryMovementService;
+        this.userService = userService;
     }
 
     @PostMapping
@@ -90,13 +98,22 @@ public class ImplementController {
         var summary = service.obtenerSummary(id);
         Integer minStock = service.obtenerStockMinimo(implemento.id());
         
-        List<InventoryMovementResponse> movements = inventoryMovementService.obtenerUltimosMovimientos(id).stream()
+        var rawMovements = inventoryMovementService.obtenerUltimosMovimientos(id);
+        
+        List<Integer> userIds = rawMovements.stream()
+                .map(com.panol_project.backendpanol.modules.catalog.stock.domain.InventoryMovement::getPerformedBy)
+                .distinct()
+                .toList();
+        
+        Map<Integer, String> userNames = userService.getNombresUsuarios(userIds);
+
+        List<InventoryMovementResponse> movements = rawMovements.stream()
                 .map(m -> new InventoryMovementResponse(
                         m.getId(),
                         m.getImplementId(),
                         m.getAction(),
                         m.getQuantity(),
-                        m.getPerformedBy(),
+                        userNames.getOrDefault(m.getPerformedBy(), "Usuario " + m.getPerformedBy()),
                         m.getTimestamp(),
                         m.getNotes()
                 )).toList();

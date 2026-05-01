@@ -30,7 +30,7 @@ public class InventoryMovementController {
             @Valid @RequestBody RegisterMovementRequest request,
             Authentication authentication
     ) {
-        String performedBy = extractUserId(authentication);
+        Integer performedBy = extractUserId(authentication);
         MovementAction domainAction = MovementAction.valueOf(request.action().name());
         
         InventoryMovement movement = service.registrarMovimiento(
@@ -44,22 +44,23 @@ public class InventoryMovementController {
     }
 
     private InventoryMovementResponse toResponse(InventoryMovement m) {
+        // Al registrar, de momento devolvemos null o string genérico para performed_by en la respuesta DTO 
+        // porque el DTO response exige String (nombre). El Endpoint GET es el que cruza los datos.
         return new InventoryMovementResponse(
                 m.getId(),
                 m.getImplementId(),
                 m.getAction(),
                 m.getQuantity(),
-                m.getPerformedBy(),
+                "Usuario " + m.getPerformedBy(),
                 m.getTimestamp(),
                 m.getNotes()
         );
     }
 
-    private String extractUserId(Authentication authentication) {
-        if (authentication == null || !(authentication.getPrincipal() instanceof Jwt jwt)) {
-            // Fallback for local testing without JWT security active
-            return "testing-user-id";
-        }
-        return jwt.getSubject();
+    private Integer extractUserId(Authentication authentication) {
+        // En Sprint 1, como no está la HU-01 de Autenticación conectada a Supabase,
+        // hardcodeamos el user_id del Coordinador (usualmente ID 1 en PostgreSQL).
+        // En Sprint 2, aquí se extraerá el UUID del JWT y se buscará el Integer asociado.
+        return 1;
     }
 }
