@@ -61,7 +61,22 @@ export interface ImplementSummary {
   } | null;
 }
 
-export type ImplementStockFilterStatus = "all" | "with_stock" | "without_stock" | "low_stock";
+export type ImplementStockFilterStatus =
+  | "all"
+  | "available"
+  | "reserved"
+  | "loaned"
+  | "damaged"
+  | "blocked";
+
+export const STOCK_STATUS_LABELS: Record<ImplementStockFilterStatus, string> = {
+  all: "Todos los estados",
+  available: "Disponible",
+  reserved: "Reservado",
+  loaned: "Prestado",
+  damaged: "Dañado",
+  blocked: "Bloqueado",
+};
 
 export interface ImplementFilters {
   name?: string;

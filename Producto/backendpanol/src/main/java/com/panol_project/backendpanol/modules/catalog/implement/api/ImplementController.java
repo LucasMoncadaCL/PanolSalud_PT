@@ -13,6 +13,8 @@ import com.panol_project.backendpanol.modules.catalog.stock.application.Inventor
 import com.panol_project.backendpanol.modules.catalog.stock.api.dto.InventoryMovementResponse;
 import com.panol_project.backendpanol.modules.users.application.UserService;
 import com.panol_project.backendpanol.modules.catalog.implement.domain.Implemento;
+import com.panol_project.backendpanol.modules.catalog.implement.domain.StockStatusFilter;
+import com.panol_project.backendpanol.shared.error.BadRequestException;
 import jakarta.validation.Valid;
 import java.util.List;
 import java.util.Map;
@@ -135,11 +137,31 @@ public class ImplementController {
     List<ImplementSummaryResponse> listar(
             @RequestParam(required = false) String name,
             @RequestParam(required = false) Integer categoryId,
+            @RequestParam(required = false) String stockStatus,
             Authentication authentication
     ) {
-        boolean includeStockBreakdown = canViewStockBreakdown(authentication);
+        boolean securityActive = authentication != null;
+        boolean isCoordinador = !securityActive || hasRole(authentication, "ROLE_COORDINADOR");
 
-        return service.listar(name, categoryId).stream()
+        // El filtro por estado de stock es exclusivo del Coordinador (solo se aplica con seguridad activa)
+        StockStatusFilter resolvedFilter = null;
+        if (stockStatus != null) {
+            if (!isCoordinador) {
+                throw new org.springframework.security.access.AccessDeniedException(
+                    "El filtro por estado de stock es exclusivo del rol Coordinador."
+                );
+            }
+            resolvedFilter = StockStatusFilter.fromValue(stockStatus)
+                    .orElseThrow(() -> new BadRequestException(
+                            "INVALID_STOCK_STATUS",
+                            "Valor inválido para stockStatus: '" + stockStatus + "'. Valores válidos: available, reserved, loaned, damaged, blocked."
+                    ));
+        }
+
+        boolean includeStockBreakdown = canViewStockBreakdown(authentication);
+        final StockStatusFilter finalFilter = resolvedFilter;
+
+        return service.listar(name, categoryId, finalFilter).stream()
                 .map(implemento -> new ImplementSummaryResponse(
                         implemento.id(),
                         implemento.name(),
@@ -182,6 +204,15 @@ public class ImplementController {
         return authentication.getAuthorities().stream()
                 .map(GrantedAuthority::getAuthority)
                 .anyMatch(role -> "ROLE_COORDINADOR".equals(role) || "ROLE_DIRECTOR".equals(role));
+    }
+
+    private boolean hasRole(Authentication authentication, String role) {
+        if (authentication == null || authentication.getAuthorities() == null) {
+            return false;
+        }
+        return authentication.getAuthorities().stream()
+                .map(GrantedAuthority::getAuthority)
+                .anyMatch(role::equals);
     }
 
     private ImplementResponse toResponse(Implemento implemento) {

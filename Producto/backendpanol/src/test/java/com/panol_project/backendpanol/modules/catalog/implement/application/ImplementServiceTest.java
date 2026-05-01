@@ -12,6 +12,7 @@ import com.panol_project.backendpanol.modules.catalog.category.domain.CategoriaR
 import com.panol_project.backendpanol.modules.catalog.implement.domain.ImplementItemType;
 import com.panol_project.backendpanol.modules.catalog.implement.domain.ImplementRepository;
 import com.panol_project.backendpanol.modules.catalog.implement.domain.Implemento;
+import com.panol_project.backendpanol.modules.catalog.implement.domain.StockStatusFilter;
 import com.panol_project.backendpanol.modules.catalog.location.application.LocationService;
 import com.panol_project.backendpanol.modules.catalog.location.domain.LocationRepository;
 import com.panol_project.backendpanol.shared.error.BadRequestException;
@@ -231,10 +232,29 @@ class ImplementServiceTest {
 
     @Test
     void listarDebeAplicarFiltrosCombinados() {
-        when(repository.findAllSummaries("Guante", 3)).thenReturn(java.util.List.of());
+        when(repository.findAllSummaries("Guante", 3, null)).thenReturn(java.util.List.of());
 
-        service.listar("  Guante ", 3);
+        service.listar("  Guante ", 3, null);
 
-        verify(repository).findAllSummaries("Guante", 3);
+        verify(repository).findAllSummaries("Guante", 3, null);
+    }
+
+    /**
+     * Verifica que el filtro BLOCKED se propaga correctamente al repositorio.
+     * Cubre la deuda técnica registrada: el campo 'blocked' usa DSL.field() dinámico
+     * en lugar del field tipado del codegen. La lógica de propagación debe ser la misma
+     * que para los demás estados (AVAILABLE, RESERVED, LOANED, DAMAGED).
+     *
+     * <p>Cuando el codegen incluya STOCK.BLOCKED, este test seguirá siendo válido
+     * sin modificaciones.</p>
+     */
+    @Test
+    void listarConFiltroBlockedDebePropagarsAlRepositorio() {
+        when(repository.findAllSummaries(null, null, StockStatusFilter.BLOCKED))
+                .thenReturn(java.util.List.of());
+
+        service.listar(null, null, StockStatusFilter.BLOCKED);
+
+        verify(repository).findAllSummaries(null, null, StockStatusFilter.BLOCKED);
     }
 }

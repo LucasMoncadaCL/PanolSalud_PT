@@ -8,10 +8,13 @@ import type {
 } from "../types/implement";
 
 export async function fetchImplements(filters?: ImplementFilters): Promise<ImplementSummary[]> {
+  const stockStatus = filters?.stockStatus;
   const response = await apiClient.get<ImplementSummary[]>("/api/implements", {
     params: {
       name: filters?.name || undefined,
       categoryId: filters?.categoryId ?? undefined,
+      // Enviar stockStatus solo si no es "all"; el backend devuelve todos por defecto sin el param
+      stockStatus: stockStatus && stockStatus !== "all" ? stockStatus : undefined,
     },
   });
   return response.data;

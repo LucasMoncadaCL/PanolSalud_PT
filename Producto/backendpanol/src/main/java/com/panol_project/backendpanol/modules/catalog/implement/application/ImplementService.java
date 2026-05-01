@@ -5,6 +5,7 @@ import com.panol_project.backendpanol.modules.catalog.implement.domain.Implement
 import com.panol_project.backendpanol.modules.catalog.implement.domain.ImplementRepository;
 import com.panol_project.backendpanol.modules.catalog.implement.domain.ImplementSummary;
 import com.panol_project.backendpanol.modules.catalog.implement.domain.Implemento;
+import com.panol_project.backendpanol.modules.catalog.implement.domain.StockStatusFilter;
 import com.panol_project.backendpanol.modules.catalog.location.application.LocationService;
 import com.panol_project.backendpanol.shared.error.BadRequestException;
 import com.panol_project.backendpanol.shared.error.NotFoundException;
@@ -164,10 +165,11 @@ public class ImplementService {
     }
 
     @Transactional(readOnly = true)
-    public List<ImplementSummary> listar(String name, Integer categoryId) {
+    public List<ImplementSummary> listar(String name, Integer categoryId, StockStatusFilter stockStatusFilter) {
         return repository.findAllSummaries(
                 normalizeFiltroNombre(name),
-                categoryId
+                categoryId,
+                stockStatusFilter
         );
     }
 

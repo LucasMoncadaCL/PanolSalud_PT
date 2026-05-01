@@ -8,6 +8,7 @@ import { fetchActiveCategories } from "../services/activeCategoryService";
 import { getErrorMessage } from "../services/apiClient";
 import type { ActiveCategoryOption } from "../types/categoryActive";
 import type { ImplementFilters, ImplementStockFilterStatus, ImplementSummary } from "../types/implement";
+import { STOCK_STATUS_LABELS } from "../types/implement";
 import { getUserRoleFromToken, type UserRole } from "../utils/auth";
 
 export function InventoryItemsPage() {
@@ -38,32 +39,12 @@ export function InventoryItemsPage() {
         fetchImplements({
           name: debouncedNameFilter.trim() || undefined,
           categoryId: filters.categoryId ?? null,
+          stockStatus: filters.stockStatus,
         }),
         fetchImplements(),
       ]);
 
-      const stockStatus = filters.stockStatus ?? "all";
-      const filteredRows = rows.filter((row) => {
-        if (stockStatus === "all") {
-          return true;
-        }
-
-        const available = row.stock?.available ?? 0;
-        const minStock = row.stock?.min_stock ?? 0;
-
-        if (stockStatus === "with_stock") {
-          return available > 0;
-        }
-        if (stockStatus === "without_stock") {
-          return available <= 0;
-        }
-        if (stockStatus === "low_stock") {
-          return available <= minStock;
-        }
-        return true;
-      });
-
-      setImplementos(filteredRows);
+      setImplementos(rows);
       setTotalImplements(allRows.length);
     } catch (error) {
       setError(getErrorMessage(error, "No se pudo cargar el listado de implementos."));
@@ -217,7 +198,7 @@ export function InventoryItemsPage() {
           </div>
 
           {isCoordinator ? (
-            <div className="catalog-filters__item">
+            <div className={filters.stockStatus && filters.stockStatus !== "all" ? "catalog-filters__item catalog-filters__item--active" : "catalog-filters__item"}>
               <label htmlFor="catalog-filter-status">Estado stock</label>
               <select
                 id="catalog-filter-status"
@@ -229,11 +210,16 @@ export function InventoryItemsPage() {
                   }))
                 }
               >
-                <option value="all">Todos</option>
-                <option value="with_stock">Con stock</option>
-                <option value="without_stock">Sin stock</option>
-                <option value="low_stock">Stock bajo minimo</option>
+                <option value="all">Todos los estados</option>
+                <option value="available">Disponible</option>
+                <option value="reserved">Reservado</option>
+                <option value="loaned">Prestado</option>
+                <option value="damaged">Dañado</option>
+                <option value="blocked">Bloqueado</option>
               </select>
+              {filters.stockStatus && filters.stockStatus !== "all" ? (
+                <span className="filter-badge">{STOCK_STATUS_LABELS[filters.stockStatus]}</span>
+              ) : null}
             </div>
           ) : null}
 
