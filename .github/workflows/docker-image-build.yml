@@ -36,6 +36,8 @@ jobs:
         run: |
           psql -h 127.0.0.1 -U panol_ci -d panol_ci <<'SQL'
           CREATE TYPE item_type_enum AS ENUM ('consumable','reusable','individual');
+          CREATE TYPE individual_status_enum AS ENUM ('available','reserved','loaned','damaged');
+          CREATE TYPE individual_condition_enum AS ENUM ('good','damaged');
 
           CREATE TABLE IF NOT EXISTS category (
             id SERIAL PRIMARY KEY,
@@ -65,6 +67,24 @@ jobs:
             created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
             updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
             observations VARCHAR(255)
+          );
+
+          CREATE TABLE IF NOT EXISTS "user" (
+            id SERIAL PRIMARY KEY,
+            name VARCHAR(150) NOT NULL,
+            auth_uuid VARCHAR(255) UNIQUE
+          );
+
+          CREATE TABLE IF NOT EXISTS individual (
+            id SERIAL PRIMARY KEY,
+            implement_id INTEGER NOT NULL REFERENCES implement(id),
+            asset_code VARCHAR(150) NOT NULL,
+            status individual_status_enum,
+            condition individual_condition_enum,
+            current_location_id INTEGER REFERENCES location(id),
+            active BOOLEAN NOT NULL DEFAULT TRUE,
+            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
           );
 
           CREATE TABLE IF NOT EXISTS stock (
