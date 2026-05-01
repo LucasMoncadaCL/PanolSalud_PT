@@ -8,6 +8,7 @@ import { addStockEntry, applyStockMovement, fetchImplementStock, updateIndividua
 import type { ImplementDetail } from "../types/implement";
 import type { LocationOption } from "../types/location";
 import type { IndividualItem, StockMovementType } from "../types/stock";
+import { getUserRoleFromToken, type UserRole } from "../utils/auth";
 
 const ITEM_TYPE_LABELS: Record<"consumable" | "reusable" | "individual", string> = {
   consumable: "Consumible",
@@ -38,6 +39,9 @@ export function InventoryItemDetailPage({ implementId }: { implementId: number }
   const [isAttributesEditing, setIsAttributesEditing] = useState(false);
   const [isStockEditing, setIsStockEditing] = useState(false);
 
+  const [userRole, setUserRole] = useState<UserRole>("UNKNOWN");
+  const isDocente = userRole === "DOCENTE";
+
   const [locations, setLocations] = useState<LocationOption[]>([]);
   const [loadingLocations, setLoadingLocations] = useState(false);
   const [locationsError, setLocationsError] = useState<string | null>(null);
@@ -56,6 +60,7 @@ export function InventoryItemDetailPage({ implementId }: { implementId: number }
     setLoading(true);
     setError(null);
     setSuccess(null);
+    setUserRole(getUserRoleFromToken());
 
     fetchImplementById(implementId)
       .then((detail) => {
@@ -186,8 +191,12 @@ export function InventoryItemDetailPage({ implementId }: { implementId: number }
         </div>
         <div className="content-header__actions">
           <a className="button button--ghost" href="#/inventory/implementos">Volver al listado</a>
-          <button type="button" className="button" onClick={() => setIsEditing(true)} disabled={loading || !implement}>Editar implemento</button>
-          <button type="button" className="button button--ghost" onClick={() => setIsStockEditing((c) => !c)} disabled={loading || !implement}>{isStockEditing ? "Cerrar ajuste stock" : "Ajustar stock"}</button>
+          {!isDocente && (
+            <>
+              <button type="button" className="button" onClick={() => setIsEditing(true)} disabled={loading || !implement}>Editar implemento</button>
+              <button type="button" className="button button--ghost" onClick={() => setIsStockEditing((c) => !c)} disabled={loading || !implement}>{isStockEditing ? "Cerrar ajuste stock" : "Ajustar stock"}</button>
+            </>
+          )}
         </div>
       </section>
 
@@ -210,7 +219,12 @@ export function InventoryItemDetailPage({ implementId }: { implementId: number }
                   <div>
                     <h2>{implement.name}</h2>
                     <div className="implement-meta-grid">
-                      <p><strong>Categoria:</strong> {implement.category?.name ?? "Sin categoria"}</p>
+                      <p>
+                        <strong>Categoria:</strong> {implement.category?.name ?? "Sin categoria"}
+                        {implement.category && !implement.category.active && (
+                          <span className="badge badge--danger" style={{ marginLeft: "8px" }}>Inactiva</span>
+                        )}
+                      </p>
                       <p><strong>Estado:</strong> {implement.active ? "Activo" : "Inactivo"}</p>
                       <p><strong>Fecha de ingreso:</strong> {implement.createdAt ? new Date(implement.createdAt).toLocaleDateString() : "-"}</p>
                       <p><strong>Tipo:</strong> {implement.item_type ? ITEM_TYPE_LABELS[implement.item_type] : "Sin tipo"}</p>
@@ -234,18 +248,32 @@ export function InventoryItemDetailPage({ implementId }: { implementId: number }
                 </div>
               </article>
 
-              {stockLoading ? <p className="field-hint">Cargando stock...</p> : null}
-              {stockDetail ? (
+              {isDocente ? (
                 <section className="stock-kpi-grid stock-kpi-grid--detail">
-                  <article className="stock-kpi stock-kpi--available"><span>Disponibles</span><strong>{stockDetail.stock.available}</strong><small>Unidades listas para uso</small></article>
-                  <article className="stock-kpi stock-kpi--loaned"><span>Prestados</span><strong>{stockDetail.stock.loaned}</strong><small>Actualmente en préstamo</small></article>
-                  <article className="stock-kpi stock-kpi--warn"><span>Reservados</span><strong>{stockDetail.stock.reserved}</strong><small>Reservas activas</small></article>
-                  <article className="stock-kpi stock-kpi--danger"><span>Dañados</span><strong>{stockDetail.stock.damaged}</strong><small>Requieren revisión</small></article>
-                  <article className="stock-kpi stock-kpi--min"><span>Stock mínimo</span><strong>{stockDetail.stock.min_stock}</strong><small>Nivel mínimo configurado</small></article>
+                  <article className="stock-kpi stock-kpi--available">
+                    <span>Disponibilidad</span>
+                    <strong style={{ fontSize: "1.5rem" }}>
+                      {implement.stock?.available_display ?? (implement.stock?.available && implement.stock.available > 0 ? "Disponible" : "No disponible")}
+                    </strong>
+                    <small>Estado actual</small>
+                  </article>
                 </section>
-              ) : null}
+              ) : (
+                <>
+                  {stockLoading ? <p className="field-hint">Cargando stock...</p> : null}
+                  {stockDetail ? (
+                    <section className="stock-kpi-grid stock-kpi-grid--detail">
+                      <article className="stock-kpi stock-kpi--available"><span>Disponibles</span><strong>{stockDetail.stock.available}</strong><small>Unidades listas para uso</small></article>
+                      <article className="stock-kpi stock-kpi--loaned"><span>Prestados</span><strong>{stockDetail.stock.loaned}</strong><small>Actualmente en préstamo</small></article>
+                      <article className="stock-kpi stock-kpi--warn"><span>Reservados</span><strong>{stockDetail.stock.reserved}</strong><small>Reservas activas</small></article>
+                      <article className="stock-kpi stock-kpi--danger"><span>Dañados</span><strong>{stockDetail.stock.damaged}</strong><small>Requieren revisión</small></article>
+                      <article className="stock-kpi stock-kpi--min"><span>Stock mínimo</span><strong>{stockDetail.stock.min_stock}</strong><small>Nivel mínimo configurado</small></article>
+                    </section>
+                  ) : null}
+                </>
+              )}
 
-              {isStockEditing ? (
+              {!isDocente && isStockEditing ? (
                 <article className="detail-card">
                   <h3>Ajustes de stock</h3>
                   <div className="stock-actions-grid">
@@ -267,7 +295,7 @@ export function InventoryItemDetailPage({ implementId }: { implementId: number }
                 </article>
               ) : null}
 
-              {implement.item_type === "individual" ? (
+              {!isDocente && implement.item_type === "individual" ? (
                 <article className="detail-card">
                   <h3>Unidades asociadas</h3>
                   <div className="table-wrapper">
@@ -304,6 +332,38 @@ export function InventoryItemDetailPage({ implementId }: { implementId: number }
                 <p><strong>Total stock:</strong> {stockDetail?.stock?.total_stock ?? 0}</p>
                 <p><strong>Ultima actualizacion:</strong> {implement.updatedAt ? new Date(implement.updatedAt).toLocaleString() : "-"}</p>
               </article>
+
+              {!isDocente && (
+                <article className="detail-card">
+                  <h3>Últimos 10 movimientos</h3>
+                  <div className="table-wrapper">
+                    <table className="category-table">
+                      <thead>
+                        <tr>
+                          <th>Fecha</th>
+                          <th>Acción</th>
+                          <th>Cantidad</th>
+                          <th>Usuario</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {!implement.recent_movements || implement.recent_movements.length === 0 ? (
+                          <tr><td colSpan={4} style={{ textAlign: "center" }}>No hay movimientos recientes registrados</td></tr>
+                        ) : (
+                          implement.recent_movements.map((mov) => (
+                            <tr key={mov.id}>
+                              <td>{new Date(mov.timestamp).toLocaleString()}</td>
+                              <td><span className="badge">{mov.action}</span></td>
+                              <td>{mov.quantity}</td>
+                              <td>{mov.performed_by}</td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </article>
+              )}
             </aside>
           </div>
         ) : null}

@@ -8,8 +8,7 @@ import { fetchActiveCategories } from "../services/activeCategoryService";
 import { getErrorMessage } from "../services/apiClient";
 import type { ActiveCategoryOption } from "../types/categoryActive";
 import type { ImplementFilters, ImplementStockFilterStatus, ImplementSummary } from "../types/implement";
-
-type UserRole = "COORDINADOR" | "DIRECTOR" | "DOCENTE" | "UNKNOWN";
+import { getUserRoleFromToken, type UserRole } from "../utils/auth";
 
 export function InventoryItemsPage() {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -332,50 +331,4 @@ export function InventoryItemsPage() {
       />
     </InventoryLayout>
   );
-}
-
-function getUserRoleFromToken(): UserRole {
-  const rawToken = window.localStorage.getItem("access_token");
-  if (!rawToken) {
-    return "UNKNOWN";
-  }
-
-  try {
-    const payloadPart = rawToken.split(".")[1];
-    if (!payloadPart) {
-      return "UNKNOWN";
-    }
-
-    const normalized = payloadPart.replace(/-/g, "+").replace(/_/g, "/");
-    const jsonPayload = decodeURIComponent(
-      atob(normalized)
-        .split("")
-        .map((char) => `%${(`00${char.charCodeAt(0).toString(16)}`).slice(-2)}`)
-        .join(""),
-    );
-
-    const parsed = JSON.parse(jsonPayload) as {
-      role?: string;
-      user_role?: string;
-      roles?: string[];
-      app_metadata?: { role?: string; roles?: string[] };
-    };
-
-    const roles = [
-      parsed.role,
-      parsed.user_role,
-      ...(parsed.roles ?? []),
-      parsed.app_metadata?.role,
-      ...(parsed.app_metadata?.roles ?? []),
-    ]
-      .filter(Boolean)
-      .map((role) => String(role).replace("ROLE_", "").toUpperCase());
-
-    if (roles.includes("COORDINADOR")) return "COORDINADOR";
-    if (roles.includes("DIRECTOR")) return "DIRECTOR";
-    if (roles.includes("DOCENTE")) return "DOCENTE";
-    return "UNKNOWN";
-  } catch {
-    return "UNKNOWN";
-  }
 }
