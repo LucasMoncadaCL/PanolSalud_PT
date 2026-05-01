@@ -1,6 +1,9 @@
 spring:
   application:
     name: backendpanol
+  data:
+    mongodb:
+      uri: ${MONGODB_URI}
   profiles:
     active: ${APP_DB_ENV:docker}
   config:

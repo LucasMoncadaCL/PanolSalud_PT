@@ -25,6 +25,7 @@ services:
       DB_SUPABASE_NAME: ${DB_SUPABASE_NAME:-postgres}
       DB_SUPABASE_USER: ${DB_SUPABASE_USER:-postgres.ekqbucfoygimzgxupdhm}
       DB_SUPABASE_SSL_MODE: ${DB_SUPABASE_SSL_MODE:-require}
+      MONGODB_URI: ${MONGODB_URI}
     ports:
       - "${BACKEND_PORT:-18080}:8080"
     volumes:
