@@ -1,9 +1,13 @@
 ﻿import { useEffect, useMemo, useState } from "react";
 import { InventoryLayout } from "../components/layout/InventoryLayout";
 import { getApiErrorPayload, getErrorMessage } from "../services/apiClient";
-import { fetchImplementById, fetchImplements } from "../services/implementService";
-import { registerManualMovement, type ManualMovementType } from "../services/movementService";
-import type { ImplementDetail, ImplementSummary, InventoryMovementDetail } from "../types/implement";
+import { fetchImplements } from "../services/implementService";
+import {
+  fetchInventoryMovements,
+  registerManualMovement,
+  type ManualMovementType,
+} from "../services/movementService";
+import type { ImplementSummary, InventoryMovementDetail } from "../types/implement";
 import { getUserRoleFromToken } from "../utils/auth";
 import { Button } from "../components/ui/Button";
 import { Select } from "../components/ui/Select";
@@ -21,85 +25,152 @@ const ACTION_LABELS: Record<string, string> = {
   DEVOLUCION: "Devolución",
 };
 
+function toDateStart(value: string): Date | null {
+  if (!value) return null;
+  const d = new Date(`${value}T00:00:00`);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+function toDateEnd(value: string): Date | null {
+  if (!value) return null;
+  const d = new Date(`${value}T23:59:59.999`);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
 export function InventoryMovesPage({ embedded = false }: { embedded?: boolean }) {
   const [implementsList, setImplementsList] = useState<ImplementSummary[]>([]);
-  const [selectedImplementId, setSelectedImplementId] = useState<string>("");
-  const [detail, setDetail] = useState<ImplementDetail | null>(null);
+  const [movements, setMovements] = useState<InventoryMovementDetail[]>([]);
   const [loadingList, setLoadingList] = useState(false);
-  const [loadingDetail, setLoadingDetail] = useState(false);
+  const [loadingMovements, setLoadingMovements] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-  const [search, setSearch] = useState("");
 
+  const [implementNameFilter, setImplementNameFilter] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("");
+  const [userFilter, setUserFilter] = useState("");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+
+  const [manualImplementId, setManualImplementId] = useState<string>("");
   const [action, setAction] = useState<ManualMovementType>("INGRESO");
   const [quantity, setQuantity] = useState("1");
   const [notes, setNotes] = useState("");
+
   const role = getUserRoleFromToken();
   const canCreateMovement = role === "COORDINADOR";
 
   useEffect(() => {
-    setLoadingList(true);
-    setError(null);
-    fetchImplements()
-      .then((list) => {
+    async function bootstrap() {
+      setError(null);
+      setLoadingList(true);
+      setLoadingMovements(true);
+      try {
+        const [list, movementRows] = await Promise.all([
+          fetchImplements(),
+          fetchInventoryMovements(),
+        ]);
         setImplementsList(list);
-        if (list.length > 0) {
-          setSelectedImplementId(String(list[0].id));
-        }
-      })
-      .catch((requestError) => setError(getErrorMessage(requestError, "No se pudo cargar implementos.")))
-      .finally(() => setLoadingList(false));
+        setMovements(movementRows);
+      } catch (requestError) {
+        setError(getErrorMessage(requestError, "No se pudo cargar la información de movimientos."));
+      } finally {
+        setLoadingList(false);
+        setLoadingMovements(false);
+      }
+    }
+
+    void bootstrap();
   }, []);
 
-  useEffect(() => {
-    if (!selectedImplementId) {
-      setDetail(null);
-      return;
-    }
-    const id = Number(selectedImplementId);
-    if (!Number.isFinite(id)) return;
-    setLoadingDetail(true);
-    fetchImplementById(id)
-      .then((d) => setDetail(d))
-      .catch((requestError) => setError(getErrorMessage(requestError, "No se pudo cargar los movimientos.")))
-      .finally(() => setLoadingDetail(false));
-  }, [selectedImplementId]);
+  const implementById = useMemo(() => {
+    const map = new Map<number, ImplementSummary>();
+    implementsList.forEach((item) => map.set(item.id, item));
+    return map;
+  }, [implementsList]);
+
+  const categoryOptions = useMemo(() => {
+    const map = new Map<number, string>();
+    implementsList.forEach((item) => {
+      if (item.category) map.set(item.category.id, item.category.name);
+    });
+    return Array.from(map.entries()).map(([id, name]) => ({ id, name }));
+  }, [implementsList]);
 
   const filteredMovements = useMemo(() => {
-    const movements = detail?.recent_movements ?? [];
-    const q = search.trim().toLowerCase();
-    if (!q) return movements;
-    return movements.filter((m) => `${m.action} ${m.notes ?? ""} ${m.performed_by}`.toLowerCase().includes(q));
-  }, [detail?.recent_movements, search]);
+    const implementQuery = implementNameFilter.trim().toLowerCase();
+    const userQuery = userFilter.trim().toLowerCase();
+    const fromDate = toDateStart(dateFrom);
+    const toDate = toDateEnd(dateTo);
+
+    return movements.filter((movement) => {
+      const implementInfo = implementById.get(movement.implement_id);
+      const implementName = implementInfo?.name ?? "";
+      const categoryId = implementInfo?.category?.id ?? null;
+      const movementDate = new Date(movement.timestamp);
+
+      if (implementQuery && !implementName.toLowerCase().includes(implementQuery)) return false;
+      if (categoryFilter && String(categoryId ?? "") !== categoryFilter) return false;
+      if (userQuery && !movement.performed_by.toLowerCase().includes(userQuery)) return false;
+      if (fromDate && movementDate < fromDate) return false;
+      if (toDate && movementDate > toDate) return false;
+
+      return true;
+    });
+  }, [movements, implementById, implementNameFilter, categoryFilter, userFilter, dateFrom, dateTo]);
 
   const moveStats = useMemo(() => {
-    const source = detail?.recent_movements ?? [];
     return {
-      total: source.length,
-      ingresos: source.filter((m) => m.action === "INGRESO").length,
-      ajustes: source.filter((m) => m.action === "AJUSTE").length,
+      total: filteredMovements.length,
+      ingresos: filteredMovements.filter((m) => m.action === "INGRESO").length,
+      ajustes: filteredMovements.filter((m) => m.action === "AJUSTE").length,
+      implements: new Set(filteredMovements.map((m) => m.implement_id)).size,
     };
-  }, [detail?.recent_movements]);
+  }, [filteredMovements]);
+
+  function clearFilters() {
+    setImplementNameFilter("");
+    setCategoryFilter("");
+    setUserFilter("");
+    setDateFrom("");
+    setDateTo("");
+  }
+
+  async function reloadMovements() {
+    setLoadingMovements(true);
+    try {
+      const rows = await fetchInventoryMovements();
+      setMovements(rows);
+    } catch (requestError) {
+      setError(getErrorMessage(requestError, "No se pudo recargar movimientos."));
+    } finally {
+      setLoadingMovements(false);
+    }
+  }
 
   async function submitMovement() {
-    if (!detail) return;
+    const implementId = Number(manualImplementId);
+    if (!Number.isFinite(implementId) || implementId <= 0) {
+      setError("Debes seleccionar un implemento para registrar el movimiento.");
+      return;
+    }
+
     const qty = Number(quantity);
     if (!Number.isFinite(qty) || qty <= 0 || !Number.isInteger(qty)) {
       setError("La cantidad debe ser un entero positivo.");
       return;
     }
+
     setSaving(true);
     setError(null);
     setSuccess(null);
     try {
-      await registerManualMovement(detail.id, {
+      await registerManualMovement(implementId, {
         action,
         quantity: qty,
         notes: notes.trim() ? notes.trim() : null,
       });
-      const updated = await fetchImplementById(detail.id);
-      setDetail(updated);
+      await reloadMovements();
       setSuccess("Movimiento registrado correctamente.");
       setQuantity("1");
       setNotes("");
@@ -134,39 +205,71 @@ export function InventoryMovesPage({ embedded = false }: { embedded?: boolean })
           <strong>{moveStats.ajustes}</strong>
         </article>
         <article className="stat-card stat-card--cyan">
-          <p>Implemento activo</p>
-          <strong>{detail?.name ?? "-"}</strong>
+          <p>Implementos con movimiento</p>
+          <strong>{moveStats.implements}</strong>
         </article>
       </section>
 
       <section className="panel">
         {error ? <div className="error-banner">{error}</div> : null}
         {success ? <div className="success-banner">{success}</div> : null}
-        <div className="catalog-filters">
+
+        <div className="catalog-filters catalog-filters--moves">
+          <div className="catalog-filters__item catalog-filters__item--search">
+            <label>Nombre implemento</label>
+            <Input
+              value={implementNameFilter}
+              onChange={(e) => setImplementNameFilter(e.target.value)}
+              placeholder="Buscar por nombre"
+            />
+          </div>
           <div className="catalog-filters__item">
-            <label>Implemento</label>
-            <Select
-              value={selectedImplementId}
-              onChange={(e) => setSelectedImplementId(e.target.value)}
-              disabled={loadingList || implementsList.length === 0}
-            >
-              {implementsList.map((item) => (
-                <option key={item.id} value={String(item.id)}>
-                  {item.name}
+            <label>Categoría</label>
+            <Select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} disabled={loadingList}>
+              <option value="">Todas</option>
+              {categoryOptions.map((category) => (
+                <option key={category.id} value={String(category.id)}>
+                  {category.name}
                 </option>
               ))}
             </Select>
           </div>
+          <div className="catalog-filters__item catalog-filters__item--search">
+            <label>Usuario</label>
+            <Input value={userFilter} onChange={(e) => setUserFilter(e.target.value)} placeholder="Ej: Ana Pérez" />
+          </div>
           <div className="catalog-filters__item">
-            <label>Buscar en historial</label>
-            <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Acción, notas o usuario" />
+            <label>Desde</label>
+            <Input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
+          </div>
+          <div className="catalog-filters__item">
+            <label>Hasta</label>
+            <Input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
           </div>
         </div>
 
-        {canCreateMovement && detail ? (
-          <Card className="inventory-motion-card" >
+        <div className="catalog-filters__summary">
+          <p>
+            Mostrando <strong>{filteredMovements.length}</strong> de <strong>{movements.length}</strong> movimientos
+          </p>
+          <Button variant="ghost" onClick={clearFilters}>Limpiar filtros</Button>
+        </div>
+
+        {canCreateMovement ? (
+          <Card className="inventory-motion-card">
             <h3>Registrar movimiento manual</h3>
             <div className="stock-actions-grid">
+              <div>
+                <label>Implemento</label>
+                <Select value={manualImplementId} onChange={(e) => setManualImplementId(e.target.value)} disabled={loadingList}>
+                  <option value="">Selecciona un implemento</option>
+                  {implementsList.map((item) => (
+                    <option key={item.id} value={String(item.id)}>
+                      {item.name}
+                    </option>
+                  ))}
+                </Select>
+              </div>
               <div>
                 <label>Acción</label>
                 <Select value={action} onChange={(e) => setAction(e.target.value as ManualMovementType)}>
@@ -195,27 +298,33 @@ export function InventoryMovesPage({ embedded = false }: { embedded?: boolean })
         ) : null}
 
         <Table>
-            <thead>
+          <thead>
+            <tr>
+              <th>Implemento</th>
+              <th>Categoría</th>
+              <th>Fecha</th>
+              <th>Acción</th>
+              <th>Cantidad</th>
+              <th>Usuario</th>
+              <th>Notas</th>
+            </tr>
+          </thead>
+          <tbody>
+            {loadingMovements ? (
               <tr>
-                <th>Fecha</th>
-                <th>Acción</th>
-                <th>Cantidad</th>
-                <th>Usuario</th>
-                <th>Notas</th>
+                <td colSpan={7} className="table-hint">Cargando movimientos...</td>
               </tr>
-            </thead>
-            <tbody>
-              {loadingDetail ? (
-                <tr>
-                  <td colSpan={5} className="table-hint">Cargando movimientos...</td>
-                </tr>
-              ) : filteredMovements.length === 0 ? (
-                <tr>
-                  <td colSpan={5} className="table-hint">No hay movimientos para mostrar.</td>
-                </tr>
-              ) : (
-                filteredMovements.map((m: InventoryMovementDetail) => (
+            ) : filteredMovements.length === 0 ? (
+              <tr>
+                <td colSpan={7} className="table-hint">No hay movimientos para mostrar.</td>
+              </tr>
+            ) : (
+              filteredMovements.map((m: InventoryMovementDetail) => {
+                const implementInfo = implementById.get(m.implement_id);
+                return (
                   <tr key={m.id} className="table-row-hover">
+                    <td>{implementInfo?.name ?? `Implemento #${m.implement_id}`}</td>
+                    <td>{implementInfo?.category?.name ?? "Sin categoría"}</td>
                     <td>{new Date(m.timestamp).toLocaleString()}</td>
                     <td>
                       <Badge tone={m.action === "INGRESO" ? "active" : m.action === "AJUSTE" ? "warn" : "inactive"}>
@@ -226,9 +335,10 @@ export function InventoryMovesPage({ embedded = false }: { embedded?: boolean })
                     <td>{m.performed_by}</td>
                     <td>{m.notes ?? "-"}</td>
                   </tr>
-                ))
-              )}
-            </tbody>
+                );
+              })
+            )}
+          </tbody>
         </Table>
       </section>
     </>

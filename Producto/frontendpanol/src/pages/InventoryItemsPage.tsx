@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+﻿import { useCallback, useEffect, useState } from "react";
 import { Plus } from "lucide-react";
 import { InventoryLayout } from "../components/layout/InventoryLayout";
 import { ImplementFormModal } from "../components/implements/ImplementFormModal";
@@ -214,7 +214,7 @@ export function InventoryItemsPage({ embedded = false }: { embedded?: boolean })
                 <option value="available">Disponible</option>
                 <option value="reserved">Reservado</option>
                 <option value="loaned">Prestado</option>
-                <option value="damaged">Dañado</option>
+                <option value="damaged">DaÃ±ado</option>
                 <option value="blocked">Bloqueado</option>
               </select>
               {filters.stockStatus && filters.stockStatus !== "all" ? (
@@ -263,7 +263,7 @@ export function InventoryItemsPage({ embedded = false }: { embedded?: boolean })
           <table className="category-table">
             <thead>
               <tr>
-                <th>ID</th>
+                <th>Miniatura</th>
                 <th>Nombre</th>
                 <th>Categoria</th>
                 <th>Ubicacion</th>
@@ -271,9 +271,39 @@ export function InventoryItemsPage({ embedded = false }: { embedded?: boolean })
               </tr>
             </thead>
             <tbody>
-              {implementos.map((row) => (
+              {loading
+                ? Array.from({ length: 7 }).map((_, index) => (
+                    <tr key={`skeleton-implement-${index}`}>
+                      <td>
+                        <div className="skeleton skeleton-thumb" />
+                      </td>
+                      <td>
+                        <div className="skeleton skeleton-line skeleton-line--md" />
+                      </td>
+                      <td>
+                        <div className="skeleton skeleton-line skeleton-line--sm" />
+                      </td>
+                      <td>
+                        <div className="skeleton skeleton-line skeleton-line--sm" />
+                      </td>
+                      <td>
+                        <div className="skeleton-actions">
+                          <div className="skeleton skeleton-btn" />
+                          <div className="skeleton skeleton-btn" />
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                : null}
+              {!loading ? implementos.map((row) => (
                 <tr key={row.id}>
-                  <td>{row.id}</td>
+                  <td>
+                    <img
+                      src={(row.imgUrl ?? (row as any).img_url) ?? "https://placehold.co/56x56/e9edf5/4d6284?text=Sin+img"}
+                      alt={row.name}
+                      className="implement-thumb"
+                    />
+                  </td>
                   <td>{row.name}</td>
                   <td>
                     {row.category
@@ -296,7 +326,7 @@ export function InventoryItemsPage({ embedded = false }: { embedded?: boolean })
                     </div>
                   </td>
                 </tr>
-              ))}
+              )) : null}
             </tbody>
           </table>
         </div>
@@ -324,3 +354,4 @@ export function InventoryItemsPage({ embedded = false }: { embedded?: boolean })
 
   return <InventoryLayout activeSection="items">{content}</InventoryLayout>;
 }
+

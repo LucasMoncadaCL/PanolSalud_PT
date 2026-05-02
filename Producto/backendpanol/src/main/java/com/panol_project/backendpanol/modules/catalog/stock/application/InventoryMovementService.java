@@ -31,4 +31,8 @@ public class InventoryMovementService {
     public List<InventoryMovement> obtenerUltimosMovimientos(Integer implementId) {
         return repository.findTop10ByImplementIdOrderByTimestampDesc(implementId);
     }
+
+    public List<InventoryMovement> obtenerTodosMovimientos() {
+        return repository.findAllByOrderByTimestampDesc();
+    }
 }

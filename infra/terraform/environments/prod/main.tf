@@ -43,6 +43,7 @@ module "secret_manager" {
   project_id = var.gcp_project_id
   secrets = [
     "DB_SUPABASE_PASSWORD",
+    "MONGODB_URI",
     "JWT_ISSUER_URI",
     "VITE_SUPABASE_PUBLISHABLE_KEY"
   ]
@@ -81,6 +82,10 @@ module "backend_service" {
   secret_env_vars = {
     DB_SUPABASE_PASSWORD = {
       secret  = module.secret_manager.secret_ids["DB_SUPABASE_PASSWORD"]
+      version = "latest"
+    }
+    MONGODB_URI = {
+      secret  = module.secret_manager.secret_ids["MONGODB_URI"]
       version = "latest"
     }
     JWT_ISSUER_URI = {

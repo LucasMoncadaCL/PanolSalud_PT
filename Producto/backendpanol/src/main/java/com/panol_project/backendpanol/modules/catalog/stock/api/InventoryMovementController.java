@@ -5,11 +5,13 @@ import com.panol_project.backendpanol.modules.catalog.stock.api.dto.InventoryMov
 import com.panol_project.backendpanol.modules.catalog.stock.application.InventoryMovementService;
 import com.panol_project.backendpanol.modules.catalog.stock.domain.InventoryMovement;
 import com.panol_project.backendpanol.modules.catalog.stock.domain.MovementAction;
+import com.panol_project.backendpanol.modules.users.application.UserService;
 import jakarta.validation.Valid;
+import java.util.List;
+import java.util.Map;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -17,9 +19,36 @@ import org.springframework.web.bind.annotation.*;
 public class InventoryMovementController {
 
     private final InventoryMovementService service;
+    private final UserService userService;
 
-    public InventoryMovementController(InventoryMovementService service) {
+    public InventoryMovementController(InventoryMovementService service, UserService userService) {
         this.service = service;
+        this.userService = userService;
+    }
+
+    @GetMapping("/movements")
+    @PreAuthorize("hasAnyRole('COORDINADOR','DIRECTOR','DOCENTE')")
+    public List<InventoryMovementResponse> listarMovimientos() {
+        List<InventoryMovement> movements = service.obtenerTodosMovimientos();
+        List<Integer> userIds = movements.stream()
+                .map(InventoryMovement::getPerformedBy)
+                .filter(id -> id != null)
+                .distinct()
+                .toList();
+
+        Map<Integer, String> userNames = userService.getNombresUsuarios(userIds);
+
+        return movements.stream()
+                .map(m -> new InventoryMovementResponse(
+                        m.getId(),
+                        m.getImplementId(),
+                        m.getAction(),
+                        m.getQuantity(),
+                        userNames.getOrDefault(m.getPerformedBy(), "Usuario " + m.getPerformedBy()),
+                        m.getTimestamp(),
+                        m.getNotes()
+                ))
+                .toList();
     }
 
     @PostMapping("/{id}/movements")

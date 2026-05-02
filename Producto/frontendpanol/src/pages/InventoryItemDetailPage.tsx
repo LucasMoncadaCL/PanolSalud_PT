@@ -6,6 +6,8 @@ import {
   Bookmark,
   Box,
   Boxes,
+  CircleArrowUp,
+  CircleMinus,
   CircleCheck,
   ClipboardList,
   Edit3,
@@ -16,6 +18,7 @@ import {
   Package,
   Tag,
   TrendingUp,
+  X,
 } from "lucide-react";
 import { InventoryLayout } from "../components/layout/InventoryLayout";
 import { ImplementEditModal } from "../components/implements/ImplementEditModal";
@@ -23,6 +26,7 @@ import { getErrorMessage } from "../services/apiClient";
 import { fetchImplementById } from "../services/implementService";
 import { fetchLabelsPdfBlob, type LabelScope } from "../services/labelService";
 import { fetchLocations } from "../services/locationService";
+import { registerManualMovement } from "../services/movementService";
 import { addStockEntry, applyStockMovement, fetchImplementStock, updateIndividualState } from "../services/stockService";
 import type { ImplementDetail } from "../types/implement";
 import type { LocationOption } from "../types/location";
@@ -137,6 +141,10 @@ const STOCK_KPI_META = [
   },
 ] as const;
 
+type AdjustOperation = "increase" | "decrease";
+type AdjustIncreaseMode = "batch" | "single";
+type AdjustStep = 1 | 2;
+
 export function InventoryItemDetailPage({
   implementId,
   embedded = false,
@@ -152,7 +160,8 @@ export function InventoryItemDetailPage({
   const [success, setSuccess] = useState<string | null>(null);
   const [stockError, setStockError] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
-  const [isStockEditing, setIsStockEditing] = useState(false);
+  const [isStockAdjustModalOpen, setIsStockAdjustModalOpen] = useState(false);
+  const [isMovementModalOpen, setIsMovementModalOpen] = useState(false);
 
   const [userRole, setUserRole] = useState<UserRole>("UNKNOWN");
   const isDocente = userRole === "DOCENTE";
@@ -162,9 +171,21 @@ export function InventoryItemDetailPage({
 
   const [entryQuantity, setEntryQuantity] = useState("1");
   const [assetCodesRaw, setAssetCodesRaw] = useState("");
+  const [adjustStep, setAdjustStep] = useState<AdjustStep>(1);
+  const [adjustOperation, setAdjustOperation] = useState<AdjustOperation>("increase");
+  const [adjustIncreaseMode, setAdjustIncreaseMode] = useState<AdjustIncreaseMode>("batch");
+  const [adjustUseSameState, setAdjustUseSameState] = useState(true);
+  const [adjustStatus, setAdjustStatus] = useState<IndividualItem["status"]>("available");
+  const [adjustCondition, setAdjustCondition] = useState<IndividualItem["condition"]>("good");
+  const [adjustNotes, setAdjustNotes] = useState("");
+  const [adjustSingleAssetCode, setAdjustSingleAssetCode] = useState("");
+  const [adjustReduceIndividualIds, setAdjustReduceIndividualIds] = useState<number[]>([]);
+  const [adjustReduceQuantity, setAdjustReduceQuantity] = useState("1");
+
   const [movementType, setMovementType] = useState<StockMovementType>("reserve");
   const [movementQuantity, setMovementQuantity] = useState("1");
-  const [movementIndividualIds, setMovementIndividualIds] = useState("");
+  const [movementSelectedIndividualIds, setMovementSelectedIndividualIds] = useState<number[]>([]);
+  const [movementNotes, setMovementNotes] = useState("");
   const [stockBusy, setStockBusy] = useState(false);
   const [editingIndividual, setEditingIndividual] = useState<IndividualItem | null>(null);
   const [individualStatus, setIndividualStatus] = useState<IndividualItem["status"]>("available");
@@ -179,7 +200,12 @@ export function InventoryItemDetailPage({
   const [labelBusy, setLabelBusy] = useState(false);
 
   useEffect(() => {
-    const hasModalOpen = isEditing || editingIndividual != null || isLabelModalOpen;
+    const hasModalOpen =
+      isEditing ||
+      editingIndividual != null ||
+      isLabelModalOpen ||
+      isStockAdjustModalOpen ||
+      isMovementModalOpen;
     if (!hasModalOpen) {
       return;
     }
@@ -187,7 +213,7 @@ export function InventoryItemDetailPage({
     return () => {
       document.body.classList.remove("modal-open");
     };
-  }, [isEditing, editingIndividual, isLabelModalOpen]);
+  }, [isEditing, editingIndividual, isLabelModalOpen, isStockAdjustModalOpen, isMovementModalOpen]);
 
   useEffect(() => {
     setLoading(true);
@@ -224,40 +250,226 @@ export function InventoryItemDetailPage({
     setStockDetail(detail);
   }
 
-  async function handleAddEntry() {
+  async function refreshImplement() {
+    const detail = await fetchImplementById(implementId);
+    setImplement(detail);
+  }
+
+  async function refreshDetailData() {
+    await Promise.all([refreshImplement(), refreshStock()]);
+  }
+
+  function resetAdjustStockState() {
+    setAdjustStep(1);
+    setAdjustOperation("increase");
+    setAdjustIncreaseMode("batch");
+    setAdjustUseSameState(true);
+    setAdjustStatus("available");
+    setAdjustCondition("good");
+    setAdjustNotes("");
+    setAdjustSingleAssetCode("");
+    setAdjustReduceIndividualIds([]);
+    setEntryQuantity("1");
+    setAssetCodesRaw("");
+    setAdjustReduceQuantity("1");
+  }
+
+  function openAdjustStockModal() {
+    resetAdjustStockState();
+    setIsStockAdjustModalOpen(true);
+  }
+
+  function closeAdjustStockModal() {
+    setIsStockAdjustModalOpen(false);
+    resetAdjustStockState();
+  }
+
+  function openMovementModal() {
+    setMovementType("reserve");
+    setMovementQuantity("1");
+    setMovementSelectedIndividualIds([]);
+    setMovementNotes("");
+    setIsMovementModalOpen(true);
+  }
+
+  function closeMovementModal() {
+    setIsMovementModalOpen(false);
+    setMovementSelectedIndividualIds([]);
+    setMovementNotes("");
+  }
+
+  function goToAdjustStep2() {
+    if (!implement) return;
+    setStockError(null);
+    setAdjustStep(2);
+  }
+
+  function buildBatchAssetCodes(quantity: number) {
+    const parsed = assetCodesRaw
+      .split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean);
+
+    if (parsed.length === quantity) {
+      return parsed;
+    }
+
+    const stamp = Date.now();
+    return Array.from({ length: quantity }).map((_, idx) => `IMP-${implementId}-${stamp}-${idx + 1}`);
+  }
+
+  async function registerInventoryTrace(action: "INGRESO" | "AJUSTE", quantity: number, notes: string) {
+    try {
+      await registerManualMovement(implementId, {
+        action,
+        quantity,
+        notes: notes.trim() ? notes.trim() : null,
+      });
+    } catch {
+      // El ajuste de stock es exitoso aunque falle el registro complementario en Mongo.
+    }
+  }
+
+  async function handleAdjustStockSave() {
+    if (!implement) return;
     setStockBusy(true);
     setStockError(null);
+
     try {
-      const payload: { quantity: number; asset_codes?: string[] } = { quantity: Number(entryQuantity) };
-      if (implement?.item_type === "individual") {
-        payload.asset_codes = assetCodesRaw.split("\n").map((line) => line.trim()).filter(Boolean);
+      if (adjustOperation === "increase") {
+        if (implement.item_type === "individual") {
+          const quantity = adjustIncreaseMode === "single" ? 1 : Number(entryQuantity);
+          if (!Number.isFinite(quantity) || quantity <= 0 || !Number.isInteger(quantity)) {
+            setStockError("La cantidad debe ser un entero positivo.");
+            setStockBusy(false);
+            return;
+          }
+
+          const assetCodes =
+            adjustIncreaseMode === "single"
+              ? [adjustSingleAssetCode.trim()]
+              : buildBatchAssetCodes(quantity);
+
+          if (assetCodes.some((code) => code.length === 0)) {
+            setStockError("Debes ingresar código para el implemento individual.");
+            setStockBusy(false);
+            return;
+          }
+
+          let nextDetail = await addStockEntry(implementId, {
+            quantity,
+            asset_codes: assetCodes,
+          });
+
+          if (adjustUseSameState) {
+            const created = (nextDetail.individuals ?? []).filter((row: IndividualItem) =>
+              assetCodes.includes(row.asset_code),
+            );
+            for (const row of created) {
+              nextDetail = await updateIndividualState(implementId, row.id, {
+                status: adjustStatus,
+                condition: adjustCondition,
+              });
+            }
+          }
+
+          setStockDetail(nextDetail);
+          await registerInventoryTrace("INGRESO", quantity, adjustNotes);
+        } else {
+          const quantity = Number(entryQuantity);
+          if (!Number.isFinite(quantity) || quantity <= 0 || !Number.isInteger(quantity)) {
+            setStockError("La cantidad debe ser un entero positivo.");
+            setStockBusy(false);
+            return;
+          }
+          setStockDetail(await addStockEntry(implementId, { quantity }));
+          await registerInventoryTrace("INGRESO", quantity, adjustNotes);
+        }
+      } else {
+        if (implement.item_type === "individual") {
+          if (adjustReduceIndividualIds.length === 0) {
+            setStockError("Selecciona al menos un implemento individual para reducir.");
+            setStockBusy(false);
+            return;
+          }
+          setStockDetail(
+            await applyStockMovement(implementId, {
+              movement_type: "decrease_available",
+              individual_ids: adjustReduceIndividualIds,
+              condition: adjustCondition,
+            }),
+          );
+          await registerInventoryTrace("AJUSTE", adjustReduceIndividualIds.length, adjustNotes);
+        } else {
+          const quantity = Number(adjustReduceQuantity);
+          if (!Number.isFinite(quantity) || quantity <= 0 || !Number.isInteger(quantity)) {
+            setStockError("La cantidad debe ser un entero positivo.");
+            setStockBusy(false);
+            return;
+          }
+          setStockDetail(
+            await applyStockMovement(implementId, {
+              movement_type: "decrease_available",
+              quantity,
+            }),
+          );
+          await registerInventoryTrace("AJUSTE", quantity, adjustNotes);
+        }
       }
-      setStockDetail(await addStockEntry(implementId, payload));
-      setSuccess("Ingreso de stock registrado.");
+
+      await refreshDetailData();
+      setSuccess("Ajuste de stock registrado.");
+      setIsStockAdjustModalOpen(false);
+      resetAdjustStockState();
     } catch (requestError) {
-      setStockError(getErrorMessage(requestError, "No se pudo registrar el ingreso de stock."));
+      setStockError(getErrorMessage(requestError, "No se pudo guardar el ajuste de stock."));
     } finally {
       setStockBusy(false);
     }
   }
 
-  async function handleMovement() {
+  async function handleMovementSave() {
+    if (implement?.item_type === "individual" && movementSelectedIndividualIds.length === 0) {
+      setStockError("Debes seleccionar al menos una unidad individual.");
+      return;
+    }
+    if (implement?.item_type !== "individual") {
+      const quantity = Number(movementQuantity);
+      if (!Number.isFinite(quantity) || quantity <= 0 || !Number.isInteger(quantity)) {
+        setStockError("La cantidad del movimiento debe ser un entero positivo.");
+        return;
+      }
+    }
     setStockBusy(true);
     setStockError(null);
     try {
       const payload: any = { movement_type: movementType };
+      let qtyForTrace = 0;
       if (implement?.item_type === "individual") {
-        payload.individual_ids = movementIndividualIds.split(",").map((v) => Number(v.trim())).filter((v) => Number.isFinite(v) && v > 0);
+        payload.individual_ids = movementSelectedIndividualIds;
+        qtyForTrace = movementSelectedIndividualIds.length;
       } else {
         payload.quantity = Number(movementQuantity);
+        qtyForTrace = Number(movementQuantity);
       }
       setStockDetail(await applyStockMovement(implementId, payload));
-      setSuccess("Movimiento de stock aplicado.");
+      await registerInventoryTrace("AJUSTE", qtyForTrace, movementNotes);
+      await refreshDetailData();
+      setSuccess("Movimiento interno aplicado.");
+      setIsMovementModalOpen(false);
+      setMovementSelectedIndividualIds([]);
+      setMovementNotes("");
     } catch (requestError) {
-      setStockError(getErrorMessage(requestError, "No se pudo aplicar el movimiento de stock."));
+      setStockError(getErrorMessage(requestError, "No se pudo aplicar el movimiento interno."));
     } finally {
       setStockBusy(false);
     }
+  }
+
+  function toggleMovementIndividual(individualId: number) {
+    setMovementSelectedIndividualIds((prev) =>
+      prev.includes(individualId) ? prev.filter((id) => id !== individualId) : [...prev, individualId],
+    );
   }
 
   async function handleMarkIndividualAvailable(individual: IndividualItem) {
@@ -359,14 +571,47 @@ export function InventoryItemDetailPage({
           {!isDocente && (
             <>
               <button type="button" className="button" onClick={() => setIsEditing(true)} disabled={loading || !implement}><Edit3 size={16} />Editar implemento</button>
-              <button type="button" className="button button--ghost" onClick={() => setIsStockEditing((c) => !c)} disabled={loading || !implement}><Boxes size={16} />{isStockEditing ? "Cerrar ajuste stock" : "Ajustar stock"}</button>
+              <button
+                type="button"
+                className="button button--ghost"
+                onClick={openAdjustStockModal}
+                disabled={loading || !implement}
+              >
+                <Boxes size={16} />
+                Ajustar stock
+              </button>
+              <button
+                type="button"
+                className="button button--ghost"
+                onClick={openMovementModal}
+                disabled={loading || !implement}
+              >
+                <CircleMinus size={16} />
+                Movimiento
+              </button>
             </>
           )}
         </div>
       </section>
 
       <section className="panel">
-        {loading ? <div className="field-hint">Cargando ficha...</div> : null}
+        {loading ? (
+          <div className="detail-skeleton-layout">
+            <div className="detail-skeleton-left">
+              <div className="skeleton skeleton-hero" />
+              <div className="detail-skeleton-kpis">
+                {Array.from({ length: 5 }).map((_, idx) => (
+                  <div key={`detail-kpi-skeleton-${idx}`} className="skeleton skeleton-kpi-card" />
+                ))}
+              </div>
+            </div>
+            <div className="detail-skeleton-right">
+              <div className="skeleton skeleton-side-card" />
+              <div className="skeleton skeleton-side-card" />
+              <div className="skeleton skeleton-side-card" />
+            </div>
+          </div>
+        ) : null}
         {error ? <div className="error-banner">{error}</div> : null}
         {success ? <div className="success-banner">{success}</div> : null}
         {stockError ? <div className="error-banner">{stockError}</div> : null}
@@ -433,28 +678,6 @@ export function InventoryItemDetailPage({
                   ) : null}
                 </>
               )}
-
-              {!isDocente && isStockEditing ? (
-                <article className="detail-card">
-                  <h3>Ajustes de stock</h3>
-                  <div className="stock-actions-grid">
-                    <div>
-                      <h4>Ingreso</h4>
-                      <input type="number" min={1} value={entryQuantity} onChange={(event) => setEntryQuantity(event.target.value)} placeholder="Cantidad" />
-                      {implement.item_type === "individual" ? <textarea value={assetCodesRaw} onChange={(event) => setAssetCodesRaw(event.target.value)} placeholder="Un asset_code por línea" /> : null}
-                      <button type="button" className="button button--sm" disabled={stockBusy} onClick={handleAddEntry}>{stockBusy ? "Procesando..." : "Registrar ingreso"}</button>
-                    </div>
-                    <div>
-                      <h4>Movimiento</h4>
-                      <select value={movementType} onChange={(event) => setMovementType(event.target.value as StockMovementType)}>{MOVEMENT_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}</select>
-                      {implement.item_type === "individual"
-                        ? <input type="text" value={movementIndividualIds} onChange={(event) => setMovementIndividualIds(event.target.value)} placeholder="IDs individuales (1,2,3)" />
-                        : <input type="number" min={1} value={movementQuantity} onChange={(event) => setMovementQuantity(event.target.value)} placeholder="Cantidad" />}
-                      <button type="button" className="button button--sm" disabled={stockBusy} onClick={handleMovement}>{stockBusy ? "Procesando..." : "Aplicar movimiento"}</button>
-                    </div>
-                  </div>
-                </article>
-              ) : null}
 
               {!isDocente && implement.item_type === "individual" ? (
                 <article className="detail-card units-card">
@@ -547,6 +770,345 @@ export function InventoryItemDetailPage({
           await refreshStock();
         }}
       />
+
+      {isStockAdjustModalOpen && implement ? (
+        <div className="modal-overlay" role="dialog" aria-modal="true">
+          <div className="modal modal--wide modal--wizard">
+            <div className="wizard-progress">
+              <span className="wizard-progress__fill" style={{ width: `${adjustStep === 1 ? 50 : 100}%` }} />
+            </div>
+            <div className="wizard-head">
+              <button
+                type="button"
+                className="button button--ghost button--sm"
+                onClick={() => {
+                  if (adjustStep === 1) {
+                    closeAdjustStockModal();
+                    return;
+                  }
+                  setAdjustStep(1);
+                }}
+                disabled={stockBusy}
+              >
+                <ArrowLeft size={14} />
+                {adjustStep === 1 ? "Cerrar" : "Volver"}
+              </button>
+              <button
+                type="button"
+                className="button button--ghost button--sm"
+                onClick={closeAdjustStockModal}
+                disabled={stockBusy}
+              >
+                <X size={14} />
+              </button>
+            </div>
+
+            <h3><CircleArrowUp size={18} style={{ marginRight: 8, verticalAlign: "text-bottom" }} />Ajustar stock</h3>
+            <p>{adjustStep === 1 ? "Selecciona operación y forma de ajuste." : "Completa la información para guardar el ajuste."}</p>
+
+            {adjustStep === 1 ? (
+              <>
+                <label htmlFor="adjust-operation">Operación</label>
+                <select
+                  id="adjust-operation"
+                  value={adjustOperation}
+                  onChange={(event) => setAdjustOperation(event.target.value as AdjustOperation)}
+                >
+                  <option value="increase">Aumentar stock</option>
+                  <option value="decrease">Reducir stock</option>
+                </select>
+
+                {implement.item_type === "individual" && adjustOperation === "increase" ? (
+                  <>
+                    <label htmlFor="adjust-increase-mode">Tipo de ingreso</label>
+                    <select
+                      id="adjust-increase-mode"
+                      value={adjustIncreaseMode}
+                      onChange={(event) => setAdjustIncreaseMode(event.target.value as AdjustIncreaseMode)}
+                    >
+                      <option value="batch">Ingresar lote</option>
+                      <option value="single">Ingresar solo un implemento individual</option>
+                    </select>
+                  </>
+                ) : null}
+              </>
+            ) : (
+              <>
+                {adjustOperation === "increase" ? (
+                  <>
+                    <label htmlFor="entry-quantity">Cantidad a ingresar</label>
+                    <input
+                      id="entry-quantity"
+                      type="number"
+                      min={1}
+                      value={adjustIncreaseMode === "single" ? "1" : entryQuantity}
+                      onChange={(event) => setEntryQuantity(event.target.value)}
+                      placeholder="Cantidad"
+                      disabled={adjustIncreaseMode === "single"}
+                    />
+
+                    {implement.item_type === "individual" && adjustIncreaseMode === "single" ? (
+                      <>
+                        <label htmlFor="single-asset-code">Código del individual</label>
+                        <input
+                          id="single-asset-code"
+                          type="text"
+                          value={adjustSingleAssetCode}
+                          onChange={(event) => setAdjustSingleAssetCode(event.target.value)}
+                          placeholder="Ej: IND-001"
+                        />
+                      </>
+                    ) : null}
+
+                    {implement.item_type === "individual" && adjustIncreaseMode === "batch" ? (
+                      <>
+                        <label htmlFor="entry-asset-codes">Códigos individuales (opcional, uno por línea)</label>
+                        <textarea
+                          id="entry-asset-codes"
+                          value={assetCodesRaw}
+                          onChange={(event) => setAssetCodesRaw(event.target.value)}
+                          placeholder="Si no completas todos, se autogenerarán."
+                        />
+                      </>
+                    ) : null}
+
+                    {implement.item_type === "individual" ? (
+                      <>
+                        <label className="modal-checkbox">
+                          <input
+                            type="checkbox"
+                            checked={adjustUseSameState}
+                            onChange={(event) => setAdjustUseSameState(event.target.checked)}
+                          />
+                          Todos con el mismo estado/condición
+                        </label>
+
+                        {adjustUseSameState ? (
+                          <>
+                            <label htmlFor="adjust-status">Estado inicial</label>
+                            <select
+                              id="adjust-status"
+                              value={adjustStatus}
+                              onChange={(event) => setAdjustStatus(event.target.value as IndividualItem["status"])}
+                            >
+                              {INDIVIDUAL_STATUS_OPTIONS.map((status) => (
+                                <option key={`adjust-status-${status}`} value={status}>
+                                  {status === "available" ? "Nuevo (disponible)" : statusLabel(status)}
+                                </option>
+                              ))}
+                            </select>
+
+                            <label htmlFor="adjust-condition">Condición inicial</label>
+                            <select
+                              id="adjust-condition"
+                              value={adjustCondition}
+                              onChange={(event) => setAdjustCondition(event.target.value as IndividualItem["condition"])}
+                            >
+                              {INDIVIDUAL_CONDITION_OPTIONS.map((condition) => (
+                                <option key={`adjust-cond-${condition}`} value={condition}>
+                                  {conditionLabel(condition)}
+                                </option>
+                              ))}
+                            </select>
+                          </>
+                        ) : null}
+                      </>
+                    ) : null}
+                  </>
+                ) : (
+                  <>
+                    {implement.item_type === "individual" ? (
+                      <>
+                        <label>Selecciona implementos a retirar (borrado lógico)</label>
+                        <div className="table-wrapper wizard-table-select">
+                          <table className="category-table category-table--compact">
+                            <thead>
+                              <tr>
+                                <th />
+                                <th>ID</th>
+                                <th>Código</th>
+                                <th>Estado</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {(stockDetail?.individuals ?? []).map((individual: IndividualItem) => (
+                                <tr key={`reduce-${individual.id}`}>
+                                  <td>
+                                    <input
+                                      type="checkbox"
+                                      checked={adjustReduceIndividualIds.includes(individual.id)}
+                                      onChange={() =>
+                                        setAdjustReduceIndividualIds((prev) =>
+                                          prev.includes(individual.id)
+                                            ? prev.filter((id) => id !== individual.id)
+                                            : [...prev, individual.id],
+                                        )
+                                      }
+                                    />
+                                  </td>
+                                  <td>{individual.id}</td>
+                                  <td>{individual.asset_code}</td>
+                                  <td>{statusLabel(individual.status)}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                        <p className="field-hint">Seleccionados: {adjustReduceIndividualIds.length}</p>
+                        <label htmlFor="reduce-condition">Condición de retiro</label>
+                        <select
+                          id="reduce-condition"
+                          value={adjustCondition}
+                          onChange={(event) => setAdjustCondition(event.target.value as IndividualItem["condition"])}
+                        >
+                          {INDIVIDUAL_CONDITION_OPTIONS.map((condition) => (
+                            <option key={`reduce-cond-${condition}`} value={condition}>
+                              {conditionLabel(condition)}
+                            </option>
+                          ))}
+                        </select>
+                      </>
+                    ) : (
+                      <>
+                        <label htmlFor="reduce-quantity">Cantidad a reducir</label>
+                        <input
+                          id="reduce-quantity"
+                          type="number"
+                          min={1}
+                          value={adjustReduceQuantity}
+                          onChange={(event) => setAdjustReduceQuantity(event.target.value)}
+                          placeholder="Cantidad"
+                        />
+                      </>
+                    )}
+                  </>
+                )}
+
+                <label htmlFor="adjust-notes">Nota del ajuste (opcional)</label>
+                <textarea
+                  id="adjust-notes"
+                  value={adjustNotes}
+                  onChange={(event) => setAdjustNotes(event.target.value)}
+                  placeholder="Describe motivo del lote o ajuste."
+                />
+              </>
+            )}
+
+            <div className="modal-actions">
+              <button type="button" className="button button--ghost" onClick={closeAdjustStockModal} disabled={stockBusy}>
+                Cancelar
+              </button>
+              {adjustStep === 1 ? (
+                <button type="button" className="button" onClick={goToAdjustStep2} disabled={stockBusy}>
+                  Continuar
+                </button>
+              ) : (
+                <button type="button" className="button" onClick={() => void handleAdjustStockSave()} disabled={stockBusy}>
+                  {stockBusy ? "Guardando..." : "Guardar"}
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {isMovementModalOpen && implement ? (
+        <div className="modal-overlay" role="dialog" aria-modal="true">
+          <div className="modal modal--wide modal--wizard">
+            <div className="wizard-progress">
+              <span className="wizard-progress__fill" style={{ width: "100%" }} />
+            </div>
+            <div className="wizard-head">
+              <button type="button" className="button button--ghost button--sm" onClick={closeMovementModal} disabled={stockBusy}>
+                <ArrowLeft size={14} />
+                Cerrar
+              </button>
+              <button type="button" className="button button--ghost button--sm" onClick={closeMovementModal} disabled={stockBusy}>
+                <X size={14} />
+              </button>
+            </div>
+            <h3><CircleMinus size={18} style={{ marginRight: 8, verticalAlign: "text-bottom" }} />Movimiento interno</h3>
+            <p>Gestiona disponibles, prestados, reservados o dañados con el stock actual.</p>
+
+            <label htmlFor="movement-type">Tipo de movimiento</label>
+            <select
+              id="movement-type"
+              value={movementType}
+              onChange={(event) => setMovementType(event.target.value as StockMovementType)}
+            >
+              {MOVEMENT_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+
+            {implement.item_type === "individual" ? (
+              <>
+                <label>Selecciona unidades</label>
+                <div className="table-wrapper" style={{ maxHeight: 260, border: "1px solid var(--line)", borderRadius: 10 }}>
+                  <table className="category-table category-table--compact">
+                    <thead>
+                      <tr>
+                        <th />
+                        <th>ID</th>
+                        <th>Código</th>
+                        <th>Estado</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(stockDetail?.individuals ?? []).map((individual: IndividualItem) => (
+                        <tr key={`move-${individual.id}`}>
+                          <td>
+                            <input
+                              type="checkbox"
+                              checked={movementSelectedIndividualIds.includes(individual.id)}
+                              onChange={() => toggleMovementIndividual(individual.id)}
+                            />
+                          </td>
+                          <td>{individual.id}</td>
+                          <td>{individual.asset_code}</td>
+                          <td>{statusLabel(individual.status)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <p className="field-hint">Seleccionadas: {movementSelectedIndividualIds.length}</p>
+              </>
+            ) : (
+              <>
+                <label htmlFor="movement-quantity">Cantidad</label>
+                <input
+                  id="movement-quantity"
+                  type="number"
+                  min={1}
+                  value={movementQuantity}
+                  onChange={(event) => setMovementQuantity(event.target.value)}
+                  placeholder="Cantidad"
+                />
+              </>
+            )}
+
+            <label htmlFor="movement-notes">Nota del movimiento (opcional)</label>
+            <textarea
+              id="movement-notes"
+              value={movementNotes}
+              onChange={(event) => setMovementNotes(event.target.value)}
+              placeholder="Motivo o contexto del movimiento interno."
+            />
+
+            <div className="modal-actions">
+              <button type="button" className="button button--ghost" onClick={closeMovementModal} disabled={stockBusy}>
+                Cancelar
+              </button>
+              <button type="button" className="button" onClick={() => void handleMovementSave()} disabled={stockBusy}>
+                {stockBusy ? "Guardando..." : "Guardar"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {editingIndividual ? (
         <div className="modal-overlay" role="dialog" aria-modal="true">

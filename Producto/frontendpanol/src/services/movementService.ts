@@ -20,3 +20,7 @@ export async function registerManualMovement(
   return response.data;
 }
 
+export async function fetchInventoryMovements(): Promise<InventoryMovementDetail[]> {
+  const response = await apiClient.get<InventoryMovementDetail[]>("/api/implements/movements");
+  return response.data;
+}

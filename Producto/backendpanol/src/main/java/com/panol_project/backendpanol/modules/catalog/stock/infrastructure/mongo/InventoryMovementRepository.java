@@ -6,4 +6,5 @@ import java.util.List;
 
 public interface InventoryMovementRepository extends MongoRepository<InventoryMovement, String> {
     List<InventoryMovement> findTop10ByImplementIdOrderByTimestampDesc(Integer implementId);
+    List<InventoryMovement> findAllByOrderByTimestampDesc();
 }

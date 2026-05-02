@@ -1,4 +1,4 @@
-import {
+﻿import {
   Bell,
   Boxes,
   ClipboardList,
@@ -9,8 +9,11 @@ import {
   Search,
   X,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import type { KeyboardEvent } from "react";
 import type { ReactNode } from "react";
+import { fetchImplements } from "../../services/implementService";
+import type { ImplementSummary } from "../../types/implement";
 
 const menuInventory = [
   { key: "items", label: "Implementos", icon: Boxes, href: "#/inventory/implementos" },
@@ -85,6 +88,96 @@ export function TopBar({
   onToggleSidebar: () => void;
   breadcrumbs: BreadcrumbPart[];
 }) {
+  const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [suggestions, setSuggestions] = useState<ImplementSummary[]>([]);
+  const [loadingSuggestions, setLoadingSuggestions] = useState(false);
+  const [suggestionsOpen, setSuggestionsOpen] = useState(false);
+  const [hoverIndex, setHoverIndex] = useState<number>(-1);
+  const searchRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const timeout = window.setTimeout(() => setDebouncedSearch(search.trim()), 250);
+    return () => window.clearTimeout(timeout);
+  }, [search]);
+
+  useEffect(() => {
+    if (debouncedSearch.length < 2) {
+      setSuggestions([]);
+      setLoadingSuggestions(false);
+      setHoverIndex(-1);
+      return;
+    }
+
+    let cancelled = false;
+    setLoadingSuggestions(true);
+    fetchImplements({ name: debouncedSearch })
+      .then((rows) => {
+        if (cancelled) return;
+        setSuggestions(rows.slice(0, 8));
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setSuggestions([]);
+      })
+      .finally(() => {
+        if (cancelled) return;
+        setLoadingSuggestions(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [debouncedSearch]);
+
+  useEffect(() => {
+    function onClickOutside(event: MouseEvent) {
+      if (!searchRef.current) return;
+      if (!searchRef.current.contains(event.target as Node)) {
+        setSuggestionsOpen(false);
+      }
+    }
+
+    document.addEventListener("mousedown", onClickOutside);
+    return () => document.removeEventListener("mousedown", onClickOutside);
+  }, []);
+
+  const shouldShowSuggestions = useMemo(
+    () => suggestionsOpen && search.trim().length >= 2,
+    [search, suggestionsOpen],
+  );
+
+  function goToImplement(row: ImplementSummary) {
+    window.location.hash = `#/inventory/implementos/${row.id}`;
+    setSuggestionsOpen(false);
+    setSearch("");
+    setHoverIndex(-1);
+  }
+
+  function handleSearchKeyDown(event: KeyboardEvent<HTMLInputElement>) {
+    if (!shouldShowSuggestions) return;
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      setHoverIndex((prev) => Math.min(prev + 1, suggestions.length - 1));
+      return;
+    }
+    if (event.key === "ArrowUp") {
+      event.preventDefault();
+      setHoverIndex((prev) => Math.max(prev - 1, 0));
+      return;
+    }
+    if (event.key === "Enter" && suggestions.length > 0) {
+      event.preventDefault();
+      const target = hoverIndex >= 0 ? suggestions[hoverIndex] : suggestions[0];
+      goToImplement(target);
+      return;
+    }
+    if (event.key === "Escape") {
+      setSuggestionsOpen(false);
+      setHoverIndex(-1);
+    }
+  }
+
   return (
     <header className="topbar">
       <button
@@ -116,9 +209,46 @@ export function TopBar({
         })}
       </nav>
 
-      <div className="topbar__search">
+      <div className="topbar__search" ref={searchRef}>
         <Search size={16} />
-        <input type="search" placeholder="Buscar..." />
+        <input
+          type="search"
+          placeholder="Buscar implementos..."
+          value={search}
+          onChange={(event) => {
+            setSearch(event.target.value);
+            setSuggestionsOpen(true);
+            setHoverIndex(-1);
+          }}
+          onFocus={() => setSuggestionsOpen(true)}
+          onKeyDown={handleSearchKeyDown}
+        />
+        {shouldShowSuggestions ? (
+          <div className="topbar-search-suggest">
+            {loadingSuggestions ? (
+              <div className="topbar-search-suggest__hint">Buscando implementos...</div>
+            ) : suggestions.length === 0 ? (
+              <div className="topbar-search-suggest__hint">Sin coincidencias</div>
+            ) : (
+              suggestions.map((row, index) => (
+                <button
+                  key={row.id}
+                  type="button"
+                  className={`topbar-search-item ${index === hoverIndex ? "is-hover" : ""}`}
+                  onMouseEnter={() => setHoverIndex(index)}
+                  onClick={() => goToImplement(row)}
+                >
+                  <img
+                    src={(row.imgUrl ?? (row as any).img_url) ?? "https://placehold.co/48x48/e9edf5/4d6284?text=Sin+img"}
+                    alt={row.name}
+                    className="topbar-search-item__thumb"
+                  />
+                  <span className="topbar-search-item__name">{row.name}</span>
+                </button>
+              ))
+            )}
+          </div>
+        ) : null}
       </div>
 
       <div className="topbar__user">
@@ -185,3 +315,4 @@ export function InventoryLayout({
     </div>
   );
 }
+

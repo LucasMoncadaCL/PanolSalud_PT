@@ -11,7 +11,7 @@ locals {
   backend_env = merge({
     APP_DB_ENV           = "supabase"
     APP_PORT             = "8080"
-    APP_SECURITY_ENABLED = "true"
+    APP_SECURITY_ENABLED = "false"
     FRONTEND_ORIGIN      = local.frontend_origin
     CORS_ALLOWED_ORIGINS = local.frontend_origin
     DB_SUPABASE_HOST     = var.supabase_db_host
@@ -43,6 +43,7 @@ module "secret_manager" {
   project_id = var.gcp_project_id
   secrets = [
     "DB_SUPABASE_PASSWORD",
+    "MONGODB_URI",
     "JWT_ISSUER_URI",
     "VITE_SUPABASE_PUBLISHABLE_KEY"
   ]
@@ -81,6 +82,10 @@ module "backend_service" {
   secret_env_vars = {
     DB_SUPABASE_PASSWORD = {
       secret  = module.secret_manager.secret_ids["DB_SUPABASE_PASSWORD"]
+      version = "latest"
+    }
+    MONGODB_URI = {
+      secret  = module.secret_manager.secret_ids["MONGODB_URI"]
       version = "latest"
     }
     JWT_ISSUER_URI = {
