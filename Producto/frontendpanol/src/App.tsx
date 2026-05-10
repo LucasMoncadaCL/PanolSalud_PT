@@ -114,22 +114,22 @@ function App() {
       };
     }
 
-    const itemDetailMatch = currentHash.match(/^#\/inventory\/(?:implementos|items)\/(\d+)$/);
+    const itemDetailMatch = currentHash.match(
+      /^#\/inventory\/(?:implementos|items)\/([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$/,
+    );
     if (itemDetailMatch) {
-      const implementId = Number(itemDetailMatch[1]);
-      if (Number.isFinite(implementId)) {
-        return {
-          key: `detail-${implementId}`,
-          navigationMode: "inventory",
-          activeSection: "items",
-          breadcrumbs: [
-            { label: "Inventario", href: "#/inventory/implementos" },
-            { label: "Implementos", href: "#/inventory/implementos" },
-            { label: "Detalle" },
-          ],
-          content: <InventoryItemDetailPage implementId={implementId} embedded />,
-        };
-      }
+      const implementUuid = itemDetailMatch[1];
+      return {
+        key: `detail-${implementUuid}`,
+        navigationMode: "inventory",
+        activeSection: "items",
+        breadcrumbs: [
+          { label: "Inventario", href: "#/inventory/implementos" },
+          { label: "Implementos", href: "#/inventory/implementos" },
+          { label: "Detalle" },
+        ],
+        content: <InventoryItemDetailPage implementUuid={implementUuid} embedded />,
+      };
     }
 
     if (currentHash.startsWith("#/inventory/implementos") || currentHash.startsWith("#/inventory/items")) {

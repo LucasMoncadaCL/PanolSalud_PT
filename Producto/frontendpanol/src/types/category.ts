@@ -1,5 +1,5 @@
 export interface Categoria {
-  id: number;
+  uuid: string;
   nombre: string;
   descripcion: string | null;
   activa: boolean;
@@ -7,7 +7,7 @@ export interface Categoria {
 }
 
 export interface CategoriaAssociationSummary {
-  categoryId: number;
+  categoryUuid: string;
   implementCount: number;
   canDelete: boolean;
 }

@@ -1,5 +1,5 @@
 export interface ActiveCategoryOption {
-  id: number;
+  uuid: string;
   name: string;
 }
 

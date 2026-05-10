@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import { Plus, RefreshCcw, Search } from "lucide-react";
 import { InventoryLayout } from "../components/layout/InventoryLayout";
 import { getApiErrorPayload, getErrorMessage } from "../services/apiClient";
@@ -109,7 +109,7 @@ export function InventoryLocationsPage({ embedded = false }: { embedded?: boolea
   function validate(): string | null {
     if (form.name.trim().length === 0) return "El nombre es obligatorio.";
     if (form.name.trim().length > 120) return "El nombre no puede superar 120 caracteres.";
-    if (form.description.trim().length > 255) return "La descripción no puede superar 255 caracteres.";
+    if (form.description.trim().length > 255) return "La descripciÃ³n no puede superar 255 caracteres.";
     return null;
   }
 
@@ -127,31 +127,35 @@ export function InventoryLocationsPage({ embedded = false }: { embedded?: boolea
       const payload = { name: form.name.trim(), description: normalize(form.description) };
       if (modalMode === "create") {
         await createLocation(payload);
-        setSuccess("Ubicación creada correctamente.");
-      } else if (modalMode === "edit" && selected) {
-        await updateLocation(selected.id, payload);
-        setSuccess("Ubicación actualizada correctamente.");
+        setSuccess("UbicaciÃ³n creada correctamente.");
+      } else if (modalMode === "edit" && selected?.uuid) {
+        await updateLocation(selected.uuid, payload);
+        setSuccess("UbicaciÃ³n actualizada correctamente.");
       }
       closeModal();
       await load();
     } catch (requestError) {
       const payload = getApiErrorPayload(requestError);
-      setFieldError(payload?.message ?? getErrorMessage(requestError, "No se pudo guardar la ubicación."));
+      setFieldError(payload?.message ?? getErrorMessage(requestError, "No se pudo guardar la ubicaciÃ³n."));
     } finally {
       setSaving(false);
     }
   }
 
   async function toggleActive(location: LocationOption) {
+    if (!location.uuid) {
+      setError("La ubicación seleccionada no tiene identificador válido.");
+      return;
+    }
     setSaving(true);
     setError(null);
     setSuccess(null);
     try {
-      await setLocationActive(location.id, !(location.active !== false));
-      setSuccess(location.active === false ? "Ubicación activada." : "Ubicación desactivada.");
+      await setLocationActive(location.uuid, !(location.active !== false));
+      setSuccess(location.active === false ? "UbicaciÃ³n activada." : "UbicaciÃ³n desactivada.");
       await load();
     } catch (requestError) {
-      setError(getErrorMessage(requestError, "No se pudo actualizar el estado de la ubicación."));
+      setError(getErrorMessage(requestError, "No se pudo actualizar el estado de la ubicaciÃ³n."));
     } finally {
       setSaving(false);
     }
@@ -162,14 +166,14 @@ export function InventoryLocationsPage({ embedded = false }: { embedded?: boolea
       <section className="content-header">
         <div>
           <h1>Ubicaciones</h1>
-          <p>Gestiona las ubicaciones físicas para asignar implementos y unidades.</p>
+          <p>Gestiona las ubicaciones fÃ­sicas para asignar implementos y unidades.</p>
         </div>
         <div className="content-header__actions">
           <button type="button" className="button button--ghost" onClick={() => void load()} disabled={loading}>
             <RefreshCcw size={16} /> Refrescar
           </button>
           <button type="button" className="button" onClick={openCreate}>
-            <Plus size={16} /> Nueva ubicación
+            <Plus size={16} /> Nueva ubicaciÃ³n
           </button>
         </div>
       </section>
@@ -194,7 +198,7 @@ export function InventoryLocationsPage({ embedded = false }: { embedded?: boolea
             <label htmlFor="locations-search">Buscar</label>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <Search size={16} />
-              <input id="locations-search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Buscar por nombre o descripción" />
+              <input id="locations-search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Buscar por nombre o descripciÃ³n" />
             </div>
           </div>
         </div>
@@ -206,9 +210,9 @@ export function InventoryLocationsPage({ embedded = false }: { embedded?: boolea
           <table className="category-table">
             <thead>
               <tr>
-                <th>ID</th>
+                <th>UUID</th>
                 <th>Nombre</th>
-                <th>Descripción</th>
+                <th>DescripciÃ³n</th>
                 <th>Estado</th>
                 <th>Acciones</th>
               </tr>
@@ -220,8 +224,8 @@ export function InventoryLocationsPage({ embedded = false }: { embedded?: boolea
                 <tr><td colSpan={5} className="table-hint">No hay ubicaciones para el filtro actual.</td></tr>
               ) : (
                 filtered.map((location) => (
-                  <tr key={location.id}>
-                    <td>{location.id}</td>
+                  <tr key={location.uuid ?? location.name}>
+                    <td>{location.uuid ?? "-"}</td>
                     <td>{location.name}</td>
                     <td>{location.description ?? "-"}</td>
                     <td>
@@ -253,8 +257,8 @@ export function InventoryLocationsPage({ embedded = false }: { embedded?: boolea
       {modalMode ? (
         <div className="modal-overlay" role="dialog" aria-modal="true">
           <div className="modal">
-            <h3>{modalMode === "create" ? "Nueva ubicación" : "Editar ubicación"}</h3>
-            <p>{modalMode === "create" ? "Crea una ubicación para asignar implementos." : "Actualiza la información de la ubicación."}</p>
+            <h3>{modalMode === "create" ? "Nueva ubicaciÃ³n" : "Editar ubicaciÃ³n"}</h3>
+            <p>{modalMode === "create" ? "Crea una ubicaciÃ³n para asignar implementos." : "Actualiza la informaciÃ³n de la ubicaciÃ³n."}</p>
             {fieldError ? <p className="field-error">{fieldError}</p> : null}
 
             <label htmlFor="location-name">Nombre</label>
@@ -266,7 +270,7 @@ export function InventoryLocationsPage({ embedded = false }: { embedded?: boolea
               placeholder="Ej: Estante A"
             />
 
-            <label htmlFor="location-description">Descripción</label>
+            <label htmlFor="location-description">DescripciÃ³n</label>
             <textarea
               id="location-description"
               value={form.description}
@@ -293,3 +297,6 @@ export function InventoryLocationsPage({ embedded = false }: { embedded?: boolea
 
   return <InventoryLayout activeSection="locations">{content}</InventoryLayout>;
 }
+
+
+

@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { InventoryLayout } from "../components/layout/InventoryLayout";
 import { getApiErrorPayload, getErrorMessage } from "../services/apiClient";
 import { fetchImplements } from "../services/implementService";
@@ -52,7 +52,7 @@ export function InventoryMovesPage({ embedded = false }: { embedded?: boolean })
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
 
-  const [manualImplementId, setManualImplementId] = useState<string>("");
+  const [manualImplementUuid, setManualImplementUuid] = useState<string>("");
   const [action, setAction] = useState<ManualMovementType>("INGRESO");
   const [quantity, setQuantity] = useState("1");
   const [notes, setNotes] = useState("");
@@ -83,18 +83,18 @@ export function InventoryMovesPage({ embedded = false }: { embedded?: boolean })
     void bootstrap();
   }, []);
 
-  const implementById = useMemo(() => {
-    const map = new Map<number, ImplementSummary>();
-    implementsList.forEach((item) => map.set(item.id, item));
+  const implementByUuid = useMemo(() => {
+    const map = new Map<string, ImplementSummary>();
+    implementsList.forEach((item) => map.set(item.uuid, item));
     return map;
   }, [implementsList]);
 
   const categoryOptions = useMemo(() => {
-    const map = new Map<number, string>();
+    const map = new Map<string, string>();
     implementsList.forEach((item) => {
-      if (item.category) map.set(item.category.id, item.category.name);
+      if (item.category) map.set(item.category.uuid, item.category.name);
     });
-    return Array.from(map.entries()).map(([id, name]) => ({ id, name }));
+    return Array.from(map.entries()).map(([uuid, name]) => ({ uuid, name }));
   }, [implementsList]);
 
   const filteredMovements = useMemo(() => {
@@ -104,27 +104,28 @@ export function InventoryMovesPage({ embedded = false }: { embedded?: boolean })
     const toDate = toDateEnd(dateTo);
 
     return movements.filter((movement) => {
-      const implementInfo = implementById.get(movement.implement_id);
+      const implementInfo = movement.implement_uuid ? implementByUuid.get(movement.implement_uuid) : undefined;
       const implementName = implementInfo?.name ?? "";
-      const categoryId = implementInfo?.category?.id ?? null;
+      const categoryUuid = implementInfo?.category?.uuid ?? null;
       const movementDate = new Date(movement.timestamp);
 
       if (implementQuery && !implementName.toLowerCase().includes(implementQuery)) return false;
-      if (categoryFilter && String(categoryId ?? "") !== categoryFilter) return false;
-      if (userQuery && !movement.performed_by.toLowerCase().includes(userQuery)) return false;
+      if (categoryFilter && String(categoryUuid ?? "") !== categoryFilter) return false;
+      const performedBy = (movement.performed_by ?? "").toLowerCase();
+      if (userQuery && !performedBy.includes(userQuery)) return false;
       if (fromDate && movementDate < fromDate) return false;
       if (toDate && movementDate > toDate) return false;
 
       return true;
     });
-  }, [movements, implementById, implementNameFilter, categoryFilter, userFilter, dateFrom, dateTo]);
+  }, [movements, implementByUuid, implementNameFilter, categoryFilter, userFilter, dateFrom, dateTo]);
 
   const moveStats = useMemo(() => {
     return {
       total: filteredMovements.length,
       ingresos: filteredMovements.filter((m) => m.action === "INGRESO").length,
       ajustes: filteredMovements.filter((m) => m.action === "AJUSTE").length,
-      implements: new Set(filteredMovements.map((m) => m.implement_id)).size,
+      implements: new Set(filteredMovements.map((m) => m.implement_uuid).filter((uuid): uuid is string => Boolean(uuid))).size,
     };
   }, [filteredMovements]);
 
@@ -149,8 +150,8 @@ export function InventoryMovesPage({ embedded = false }: { embedded?: boolean })
   }
 
   async function submitMovement() {
-    const implementId = Number(manualImplementId);
-    if (!Number.isFinite(implementId) || implementId <= 0) {
+    const implementUuid = manualImplementUuid.trim();
+    if (!implementUuid) {
       setError("Debes seleccionar un implemento para registrar el movimiento.");
       return;
     }
@@ -165,7 +166,7 @@ export function InventoryMovesPage({ embedded = false }: { embedded?: boolean })
     setError(null);
     setSuccess(null);
     try {
-      await registerManualMovement(implementId, {
+      await registerManualMovement(implementUuid, {
         action,
         quantity: qty,
         notes: notes.trim() ? notes.trim() : null,
@@ -228,7 +229,7 @@ export function InventoryMovesPage({ embedded = false }: { embedded?: boolean })
             <Select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} disabled={loadingList}>
               <option value="">Todas</option>
               {categoryOptions.map((category) => (
-                <option key={category.id} value={String(category.id)}>
+                <option key={category.uuid} value={category.uuid}>
                   {category.name}
                 </option>
               ))}
@@ -261,10 +262,10 @@ export function InventoryMovesPage({ embedded = false }: { embedded?: boolean })
             <div className="stock-actions-grid">
               <div>
                 <label>Implemento</label>
-                <Select value={manualImplementId} onChange={(e) => setManualImplementId(e.target.value)} disabled={loadingList}>
+                <Select value={manualImplementUuid} onChange={(e) => setManualImplementUuid(e.target.value)} disabled={loadingList}>
                   <option value="">Selecciona un implemento</option>
                   {implementsList.map((item) => (
-                    <option key={item.id} value={String(item.id)}>
+                    <option key={item.uuid} value={item.uuid}>
                       {item.name}
                     </option>
                   ))}
@@ -320,10 +321,11 @@ export function InventoryMovesPage({ embedded = false }: { embedded?: boolean })
               </tr>
             ) : (
               filteredMovements.map((m: InventoryMovementDetail) => {
-                const implementInfo = implementById.get(m.implement_id);
+                const implementInfo = m.implement_uuid ? implementByUuid.get(m.implement_uuid) : undefined;
+                const shortUuid = m.implement_uuid ? m.implement_uuid.slice(0, 8) : "sin-uuid";
                 return (
                   <tr key={m.id} className="table-row-hover">
-                    <td>{implementInfo?.name ?? `Implemento #${m.implement_id}`}</td>
+                    <td>{implementInfo?.name ?? `Implemento #${shortUuid}`}</td>
                     <td>{implementInfo?.category?.name ?? "Sin categoría"}</td>
                     <td>{new Date(m.timestamp).toLocaleString()}</td>
                     <td>
@@ -332,7 +334,7 @@ export function InventoryMovesPage({ embedded = false }: { embedded?: boolean })
                       </Badge>
                     </td>
                     <td>{m.quantity}</td>
-                    <td>{m.performed_by}</td>
+                    <td>{m.performed_by || "Usuario no identificado"}</td>
                     <td>{m.notes ?? "-"}</td>
                   </tr>
                 );

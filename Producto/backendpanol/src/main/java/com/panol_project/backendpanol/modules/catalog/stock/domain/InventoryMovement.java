@@ -4,6 +4,7 @@ import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.core.mapping.Field;
 import java.time.Instant;
+import java.util.UUID;
 
 @Document(collection = "inventory_movement")
 public class InventoryMovement {
@@ -11,15 +12,15 @@ public class InventoryMovement {
     @Id
     private String id;
 
-    @Field("implement_id")
-    private Integer implementId;
+    @Field("implement_uuid")
+    private UUID implementUuid;
 
     private MovementAction action;
 
     private Integer quantity;
 
-    @Field("performed_by")
-    private Integer performedBy;
+    @Field("performed_by_uuid")
+    private UUID performedByUuid;
 
     private Instant timestamp;
 
@@ -28,11 +29,11 @@ public class InventoryMovement {
     public InventoryMovement() {
     }
 
-    public InventoryMovement(Integer implementId, MovementAction action, Integer quantity, Integer performedBy, Instant timestamp, String notes) {
-        this.implementId = implementId;
+    public InventoryMovement(UUID implementUuid, MovementAction action, Integer quantity, UUID performedByUuid, Instant timestamp, String notes) {
+        this.implementUuid = implementUuid;
         this.action = action;
         this.quantity = quantity;
-        this.performedBy = performedBy;
+        this.performedByUuid = performedByUuid;
         this.timestamp = timestamp;
         this.notes = notes;
     }
@@ -45,12 +46,12 @@ public class InventoryMovement {
         this.id = id;
     }
 
-    public Integer getImplementId() {
-        return implementId;
+    public UUID getImplementUuid() {
+        return implementUuid;
     }
 
-    public void setImplementId(Integer implementId) {
-        this.implementId = implementId;
+    public void setImplementUuid(UUID implementUuid) {
+        this.implementUuid = implementUuid;
     }
 
     public MovementAction getAction() {
@@ -69,12 +70,12 @@ public class InventoryMovement {
         this.quantity = quantity;
     }
 
-    public Integer getPerformedBy() {
-        return performedBy;
+    public UUID getPerformedByUuid() {
+        return performedByUuid;
     }
 
-    public void setPerformedBy(Integer performedBy) {
-        this.performedBy = performedBy;
+    public void setPerformedByUuid(UUID performedByUuid) {
+        this.performedByUuid = performedByUuid;
     }
 
     public Instant getTimestamp() {

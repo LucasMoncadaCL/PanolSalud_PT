@@ -12,9 +12,9 @@ type ItemType = "consumable" | "reusable" | "individual";
 
 interface FieldErrors {
   name?: string;
-  categoryId?: string;
+  categoryUuid?: string;
   itemType?: string;
-  locationId?: string;
+  locationUuid?: string;
   minStock?: string;
   description?: string;
   barcode?: string;
@@ -30,22 +30,22 @@ const ITEM_TYPE_OPTIONS: Array<{ value: ItemType; label: string }> = [
 ];
 
 interface ImplementEditModalProps {
-  implementId: number | null;
+  implementUuid: string | null;
   isOpen: boolean;
   onClose: () => void;
   onSaved?: (updated: ImplementDetail) => void | Promise<void>;
 }
 
-export function ImplementEditModal({ implementId, isOpen, onClose, onSaved }: ImplementEditModalProps) {
+export function ImplementEditModal({ implementUuid, isOpen, onClose, onSaved }: ImplementEditModalProps) {
   const [loadingImplement, setLoadingImplement] = useState(false);
   const [implement, setImplement] = useState<ImplementDetail | null>(null);
   const [saving, setSaving] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
 
   const [name, setName] = useState("");
-  const [categoryIdRaw, setCategoryIdRaw] = useState<string>("");
+  const [categoryUuidRaw, setCategoryUuidRaw] = useState<string>("");
   const [itemTypeRaw, setItemTypeRaw] = useState<ItemType | "">("");
-  const [locationIdRaw, setLocationIdRaw] = useState<string>("");
+  const [locationUuidRaw, setLocationUuidRaw] = useState<string>("");
   const [description, setDescription] = useState("");
   const [barcode, setBarcode] = useState("");
   const [imgUrl, setImgUrl] = useState("");
@@ -61,7 +61,7 @@ export function ImplementEditModal({ implementId, isOpen, onClose, onSaved }: Im
   const [locationsError, setLocationsError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!isOpen || implementId == null) {
+    if (!isOpen || implementUuid == null) {
       return;
     }
 
@@ -71,13 +71,13 @@ export function ImplementEditModal({ implementId, isOpen, onClose, onSaved }: Im
     setLoadingImplement(true);
     setImplement(null);
 
-    fetchImplementById(implementId)
+    fetchImplementById(implementUuid)
       .then((detail) => {
         setImplement(detail);
         setName(detail.name ?? "");
-        setCategoryIdRaw(detail.categoryId == null ? "" : String(detail.categoryId));
+        setCategoryUuidRaw(detail.category_uuid ?? "");
         setItemTypeRaw(detail.item_type ?? "");
-        setLocationIdRaw(detail.locationId == null ? "" : String(detail.locationId));
+        setLocationUuidRaw(detail.location_uuid ?? "");
         setDescription(detail.description ?? "");
         setBarcode(detail.barcode ?? "");
         setImgUrl(detail.img_url ?? "");
@@ -90,7 +90,7 @@ export function ImplementEditModal({ implementId, isOpen, onClose, onSaved }: Im
         });
       })
       .finally(() => setLoadingImplement(false));
-  }, [implementId, isOpen]);
+  }, [implementUuid, isOpen]);
 
   useEffect(() => {
     if (!isOpen) {
@@ -147,12 +147,12 @@ export function ImplementEditModal({ implementId, isOpen, onClose, onSaved }: Im
     if (!currentCategoryInactive) {
       return false;
     }
-    const currentId = implement?.category?.id;
-    if (currentId == null) {
+    const currentUuid = implement?.category?.uuid;
+    if (!currentUuid) {
       return false;
     }
-    return categoryIdRaw.trim() === String(currentId);
-  }, [categoryIdRaw, currentCategoryInactive, implement?.category?.id]);
+    return categoryUuidRaw.trim() === currentUuid;
+  }, [categoryUuidRaw, currentCategoryInactive, implement?.category?.uuid]);
 
   const categoryInactiveError = useMemo(() => {
     if (!currentCategoryInactive) {
@@ -169,7 +169,7 @@ export function ImplementEditModal({ implementId, isOpen, onClose, onSaved }: Im
       return null;
     }
     return {
-      id: implement.category.id,
+      uuid: implement.category.uuid,
       name: implement.category.name,
     };
   }, [currentCategoryInactive, implement?.category]);
@@ -180,8 +180,8 @@ export function ImplementEditModal({ implementId, isOpen, onClose, onSaved }: Im
 
   function validateClientSide(): FieldErrors {
     const errors: FieldErrors = {};
-    const categoryId = categoryIdRaw.trim() ? Number(categoryIdRaw) : null;
-    const locationId = locationIdRaw.trim() ? Number(locationIdRaw) : NaN;
+    const categoryUuid = categoryUuidRaw.trim();
+    const locationUuid = locationUuidRaw.trim();
     const minStock = minStockRaw.trim() ? Number(minStockRaw) : NaN;
 
     if (name.trim().length === 0) {
@@ -193,8 +193,8 @@ export function ImplementEditModal({ implementId, isOpen, onClose, onSaved }: Im
     if (itemTypeRaw.trim().length === 0) {
       errors.itemType = "El tipo de implemento es obligatorio.";
     }
-    if (!Number.isFinite(locationId)) {
-      errors.locationId = "La ubicacion es obligatoria.";
+    if (!locationUuid) {
+      errors.locationUuid = "La ubicacion es obligatoria.";
     }
     if (!Number.isFinite(minStock) || minStock <= 0 || !Number.isInteger(minStock)) {
       errors.minStock = "El stock minimo debe ser un entero positivo.";
@@ -206,10 +206,10 @@ export function ImplementEditModal({ implementId, isOpen, onClose, onSaved }: Im
       errors.observations = "Las observaciones no pueden superar 500 caracteres.";
     }
     if (currentCategoryInactive) {
-      if (categoryId == null || !Number.isFinite(Number(categoryId))) {
-        errors.categoryId = "Debes seleccionar una categoria activa.";
+      if (!categoryUuid) {
+        errors.categoryUuid = "Debes seleccionar una categoria activa.";
       } else if (isUsingInactiveCategory) {
-        errors.categoryId = categoryInactiveError ?? "Debes seleccionar una categoria activa.";
+        errors.categoryUuid = categoryInactiveError ?? "Debes seleccionar una categoria activa.";
       }
     }
 
@@ -225,7 +225,7 @@ export function ImplementEditModal({ implementId, isOpen, onClose, onSaved }: Im
       return errors;
     }
     if (normalized.includes("categoria")) {
-      errors.categoryId = message;
+      errors.categoryUuid = message;
       return errors;
     }
     if (normalized.includes("tipo")) {
@@ -233,7 +233,7 @@ export function ImplementEditModal({ implementId, isOpen, onClose, onSaved }: Im
       return errors;
     }
     if (normalized.includes("ubicacion")) {
-      errors.locationId = message;
+      errors.locationUuid = message;
       return errors;
     }
     if (normalized.includes("stock minimo")) {
@@ -265,7 +265,7 @@ export function ImplementEditModal({ implementId, isOpen, onClose, onSaved }: Im
     event.preventDefault();
     setFieldErrors({});
 
-    if (implementId == null) {
+    if (implementUuid == null) {
       setFieldErrors({ form: "No se pudo identificar el implemento." });
       return;
     }
@@ -276,16 +276,16 @@ export function ImplementEditModal({ implementId, isOpen, onClose, onSaved }: Im
       return;
     }
 
-    const categoryId = categoryIdRaw.trim() ? Number(categoryIdRaw) : null;
-    const locationId = Number(locationIdRaw);
+    const categoryUuid = categoryUuidRaw.trim();
+    const locationUuid = locationUuidRaw.trim();
     const minStock = Number(minStockRaw);
 
     setSaving(true);
     try {
-      const updated = await updateImplement(implementId, {
+      const updated = await updateImplement(implementUuid, {
         name: name.trim(),
-        category_id: Number.isFinite(Number(categoryId)) ? categoryId : null,
-        location_id: locationId,
+        categoryUuid,
+        locationUuid,
         item_type: itemTypeRaw as ItemType,
         description: description.trim() ? description.trim() : null,
         barcode: barcode.trim() ? barcode.trim() : null,
@@ -346,27 +346,27 @@ export function ImplementEditModal({ implementId, isOpen, onClose, onSaved }: Im
                 ) : null}
                 <select
                   id="implement-edit-category"
-                  value={categoryIdRaw}
+                  value={categoryUuidRaw}
                   onChange={(event) => {
-                    setCategoryIdRaw(event.target.value);
-                    setFieldErrors((current) => ({ ...current, categoryId: undefined }));
+                    setCategoryUuidRaw(event.target.value);
+                    setFieldErrors((current) => ({ ...current, categoryUuid: undefined }));
                   }}
                   disabled={isCategoryDisabled}
                 >
                   {inactiveCategoryOption ? (
-                    <option value={String(inactiveCategoryOption.id)} disabled>
+                    <option value={inactiveCategoryOption.uuid} disabled>
                       {inactiveCategoryOption.name} [Inactiva]
                     </option>
                   ) : null}
                   <option value="">Sin categoria</option>
                   {categories.map((category) => (
-                    <option key={category.id} value={String(category.id)}>
+                    <option key={category.uuid} value={category.uuid}>
                       {category.name}
                     </option>
                   ))}
                 </select>
                 {categoriesError ? <p className="field-error">{categoriesError}</p> : null}
-                {fieldErrors.categoryId ? <p className="field-error">{fieldErrors.categoryId}</p> : null}
+                {fieldErrors.categoryUuid ? <p className="field-error">{fieldErrors.categoryUuid}</p> : null}
               </div>
 
               <div className="modal-field">
@@ -396,10 +396,10 @@ export function ImplementEditModal({ implementId, isOpen, onClose, onSaved }: Im
                 <label htmlFor="implement-edit-location">Ubicacion</label>
                 <select
                   id="implement-edit-location"
-                  value={locationIdRaw}
+                  value={locationUuidRaw}
                   onChange={(event) => {
-                    setLocationIdRaw(event.target.value);
-                    setFieldErrors((current) => ({ ...current, locationId: undefined }));
+                    setLocationUuidRaw(event.target.value);
+                    setFieldErrors((current) => ({ ...current, locationUuid: undefined }));
                   }}
                   disabled={isLocationDisabled}
                   required
@@ -408,13 +408,13 @@ export function ImplementEditModal({ implementId, isOpen, onClose, onSaved }: Im
                     Selecciona una ubicacion
                   </option>
                   {locations.map((location) => (
-                    <option key={location.id} value={String(location.id)}>
+                    <option key={location.uuid} value={location.uuid}>
                       {location.name}
                     </option>
                   ))}
                 </select>
                 {locationsError ? <p className="field-error">{locationsError}</p> : null}
-                {fieldErrors.locationId ? <p className="field-error">{fieldErrors.locationId}</p> : null}
+                {fieldErrors.locationUuid ? <p className="field-error">{fieldErrors.locationUuid}</p> : null}
               </div>
 
               <div className="modal-field modal-field--full">
@@ -513,8 +513,8 @@ export function ImplementEditModal({ implementId, isOpen, onClose, onSaved }: Im
                 loadingImplement ||
                 name.trim().length === 0 ||
                 itemTypeRaw.trim().length === 0 ||
-                locationIdRaw.trim().length === 0 ||
-                (currentCategoryInactive && (categoryIdRaw.trim().length === 0 || isUsingInactiveCategory)) ||
+                locationUuidRaw.trim().length === 0 ||
+                (currentCategoryInactive && (categoryUuidRaw.trim().length === 0 || isUsingInactiveCategory)) ||
                 Boolean(categoriesError) ||
                 Boolean(locationsError)
               }

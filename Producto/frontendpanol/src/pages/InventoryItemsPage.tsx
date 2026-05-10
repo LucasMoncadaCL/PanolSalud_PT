@@ -1,4 +1,4 @@
-﻿import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Plus } from "lucide-react";
 import { InventoryLayout } from "../components/layout/InventoryLayout";
 import { ImplementFormModal } from "../components/implements/ImplementFormModal";
@@ -13,7 +13,7 @@ import { getUserRoleFromToken, type UserRole } from "../utils/auth";
 
 export function InventoryItemsPage({ embedded = false }: { embedded?: boolean }) {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
-  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editingUuid, setEditingUuid] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -25,7 +25,7 @@ export function InventoryItemsPage({ embedded = false }: { embedded?: boolean })
   const [userRole, setUserRole] = useState<UserRole>("UNKNOWN");
   const [filters, setFilters] = useState<ImplementFilters>({
     name: "",
-    categoryId: null,
+    categoryUuid: null,
     stockStatus: "all",
   });
   const [debouncedNameFilter, setDebouncedNameFilter] = useState(filters.name ?? "");
@@ -38,7 +38,7 @@ export function InventoryItemsPage({ embedded = false }: { embedded?: boolean })
       const [rows, allRows] = await Promise.all([
         fetchImplements({
           name: debouncedNameFilter.trim() || undefined,
-          categoryId: filters.categoryId ?? null,
+          categoryUuid: filters.categoryUuid ?? null,
           stockStatus: filters.stockStatus,
         }),
         fetchImplements(),
@@ -46,22 +46,22 @@ export function InventoryItemsPage({ embedded = false }: { embedded?: boolean })
 
       setImplementos(rows);
       setTotalImplements(allRows.length);
-    } catch (error) {
-      setError(getErrorMessage(error, "No se pudo cargar el listado de implementos."));
+    } catch (requestError) {
+      setError(getErrorMessage(requestError, "No se pudo cargar el listado de implementos."));
     } finally {
       setLoading(false);
     }
-  }, [debouncedNameFilter, filters.categoryId, filters.stockStatus]);
+  }, [debouncedNameFilter, filters.categoryUuid, filters.stockStatus]);
 
   const hasActiveFilters =
     (filters.name ?? "").trim().length > 0 ||
-    filters.categoryId != null ||
+    filters.categoryUuid != null ||
     (filters.stockStatus ?? "all") !== "all";
 
   function clearFilters() {
     setFilters({
       name: "",
-      categoryId: null,
+      categoryUuid: null,
       stockStatus: "all",
     });
   }
@@ -99,9 +99,9 @@ export function InventoryItemsPage({ embedded = false }: { embedded?: boolean })
 
   async function handleSubmit(payload: {
     name: string;
-    categoryId: number;
+    categoryUuid: string;
     itemType: "consumable" | "reusable" | "individual";
-    locationId: number;
+    locationUuid: string;
     description: string | null;
     barcode: string | null;
     imgUrl: string | null;
@@ -115,9 +115,9 @@ export function InventoryItemsPage({ embedded = false }: { embedded?: boolean })
     try {
       const created = await createImplement({
         name: payload.name,
-        category_id: payload.categoryId,
+        categoryUuid: payload.categoryUuid,
         item_type: payload.itemType,
-        location_id: payload.locationId,
+        locationUuid: payload.locationUuid,
         description: payload.description,
         barcode: payload.barcode,
         img_url: payload.imgUrl,
@@ -125,14 +125,12 @@ export function InventoryItemsPage({ embedded = false }: { embedded?: boolean })
         observations: payload.observations,
       });
       try {
-        window.sessionStorage.setItem("inventory.justCreatedImplementId", String(created.id));
+        window.sessionStorage.setItem("inventory.justCreatedImplementId", created.uuid);
       } catch {
         // Si el storage no esta disponible, el flujo principal de creacion debe continuar.
       }
       setIsCreateOpen(false);
-      window.location.hash = `#/inventory/implementos/${created.id}`;
-    } catch (error) {
-      throw error;
+      window.location.hash = `#/inventory/implementos/${created.uuid}`;
     } finally {
       setSaving(false);
     }
@@ -168,15 +166,15 @@ export function InventoryItemsPage({ embedded = false }: { embedded?: boolean })
         </div>
 
         <div className="catalog-filters">
-          <div className={filters.categoryId != null ? "catalog-filters__item catalog-filters__item--active" : "catalog-filters__item"}>
+          <div className={filters.categoryUuid != null ? "catalog-filters__item catalog-filters__item--active" : "catalog-filters__item"}>
             <label htmlFor="catalog-filter-category">Categoria</label>
             <select
               id="catalog-filter-category"
-              value={filters.categoryId == null ? "" : String(filters.categoryId)}
+              value={filters.categoryUuid == null ? "" : filters.categoryUuid}
               onChange={(event) =>
                 setFilters((prev) => ({
                   ...prev,
-                  categoryId: event.target.value ? Number(event.target.value) : null,
+                  categoryUuid: event.target.value ? event.target.value : null,
                 }))
               }
               disabled={categoriesLoading || categoryOptions.length === 0}
@@ -185,7 +183,7 @@ export function InventoryItemsPage({ embedded = false }: { embedded?: boolean })
                 <>
                   <option value="">Todas las categorias</option>
                   {categoryOptions.map((category) => (
-                    <option key={category.id} value={String(category.id)}>
+                    <option key={category.uuid} value={category.uuid}>
                       {category.name}
                     </option>
                   ))}
@@ -194,7 +192,7 @@ export function InventoryItemsPage({ embedded = false }: { embedded?: boolean })
                 <option value="">Sin categorias</option>
               )}
             </select>
-            {filters.categoryId != null ? <span className="filter-badge">Filtro activo</span> : null}
+            {filters.categoryUuid != null ? <span className="filter-badge">Filtro activo</span> : null}
           </div>
 
           {isCoordinator ? (
@@ -214,7 +212,7 @@ export function InventoryItemsPage({ embedded = false }: { embedded?: boolean })
                 <option value="available">Disponible</option>
                 <option value="reserved">Reservado</option>
                 <option value="loaned">Prestado</option>
-                <option value="damaged">DaÃ±ado</option>
+                <option value="damaged">Da�ado</option>
                 <option value="blocked">Bloqueado</option>
               </select>
               {filters.stockStatus && filters.stockStatus !== "all" ? (
@@ -295,38 +293,40 @@ export function InventoryItemsPage({ embedded = false }: { embedded?: boolean })
                     </tr>
                   ))
                 : null}
-              {!loading ? implementos.map((row) => (
-                <tr key={row.id}>
-                  <td>
-                    <img
-                      src={(row.imgUrl ?? (row as any).img_url) ?? "https://placehold.co/56x56/e9edf5/4d6284?text=Sin+img"}
-                      alt={row.name}
-                      className="implement-thumb"
-                    />
-                  </td>
-                  <td>{row.name}</td>
-                  <td>
-                    {row.category
-                      ? `${row.category.name}${row.category.active ? "" : " [Categoria inactiva]"}`
-                      : "Sin categoria"}
-                  </td>
-                  <td>{row.location ? row.location.name : "Sin ubicacion"}</td>
-                  <td>
-                    <div className="table-actions">
-                      <button
-                        type="button"
-                        className="button button--table button--ghost"
-                        onClick={() => setEditingId(row.id)}
-                      >
-                        Editar
-                      </button>
-                      <a className="button button--table button--ghost" href={`#/inventory/implementos/${row.id}`}>
-                        Ver ficha
-                      </a>
-                    </div>
-                  </td>
-                </tr>
-              )) : null}
+              {!loading
+                ? implementos.map((row) => (
+                    <tr key={row.uuid}>
+                      <td>
+                        <img
+                          src={(row.imgUrl ?? (row as any).img_url) ?? "https://placehold.co/56x56/e9edf5/4d6284?text=Sin+img"}
+                          alt={row.name}
+                          className="implement-thumb"
+                        />
+                      </td>
+                      <td>{row.name}</td>
+                      <td>
+                        {row.category
+                          ? `${row.category.name}${row.category.active ? "" : " [Categoria inactiva]"}`
+                          : "Sin categoria"}
+                      </td>
+                      <td>{row.location ? row.location.name : "Sin ubicacion"}</td>
+                      <td>
+                        <div className="table-actions">
+                          <button
+                            type="button"
+                            className="button button--table button--ghost"
+                            onClick={() => setEditingUuid(row.uuid)}
+                          >
+                            Editar
+                          </button>
+                          <a className="button button--table button--ghost" href={`#/inventory/implementos/${row.uuid}`}>
+                            Ver ficha
+                          </a>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                : null}
             </tbody>
           </table>
         </div>
@@ -340,9 +340,9 @@ export function InventoryItemsPage({ embedded = false }: { embedded?: boolean })
       />
 
       <ImplementEditModal
-        implementId={editingId}
-        isOpen={editingId != null}
-        onClose={() => setEditingId(null)}
+        implementUuid={editingUuid}
+        isOpen={editingUuid != null}
+        onClose={() => setEditingUuid(null)}
         onSaved={handleSaved}
       />
     </>
@@ -354,4 +354,3 @@ export function InventoryItemsPage({ embedded = false }: { embedded?: boolean })
 
   return <InventoryLayout activeSection="items">{content}</InventoryLayout>;
 }
-

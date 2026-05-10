@@ -57,7 +57,7 @@ export function InventoryCategoriesPage({ embedded = false }: { embedded?: boole
     }
 
     if (modal.type === "edit" && modal.category) {
-      const ok = await update(modal.category.id, name, description);
+      const ok = await update(modal.category.uuid, name, description);
       if (ok) {
         closeModal();
       }
@@ -69,7 +69,7 @@ export function InventoryCategoriesPage({ embedded = false }: { embedded?: boole
       return;
     }
 
-    const result = await deactivate(modal.category.id, force);
+    const result = await deactivate(modal.category.uuid, force);
     if (result.ok) {
       closeModal();
       return;
@@ -91,7 +91,7 @@ export function InventoryCategoriesPage({ embedded = false }: { embedded?: boole
       return;
     }
 
-    const ok = await remove(modal.category.id);
+    const ok = await remove(modal.category.uuid);
     if (ok) {
       closeModal();
     }

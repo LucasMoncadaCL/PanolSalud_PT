@@ -1,4 +1,4 @@
-﻿# Terraform (GCP Cloud Run + Supabase external)
+# Terraform (GCP Cloud Run + Supabase external)
 
 This folder contains Infrastructure as Code for deploying backend and frontend to GCP using Cloud Run, Artifact Registry and Secret Manager.
 
@@ -37,19 +37,25 @@ terraform plan -var-file=terraform.tfvars
 terraform apply -var-file=terraform.tfvars
 ```
 
-## Secrets model
+## Configuration model
 
-Secrets are referenced from Secret Manager and never hardcoded in tfvars:
+`secret_env_vars` (Secret Manager) only for sensitive values:
 
 - `DB_SUPABASE_PASSWORD`
+- `APP_AUTH_JWT_SECRET`
+- `MONGODB_URI`
+
+`env_vars` (non-sensitive) for runtime/public configuration:
+
 - `JWT_ISSUER_URI`
 - `VITE_SUPABASE_PUBLISHABLE_KEY`
-
-Use the runbook in `infra/terraform/RUNBOOK.md` to create and rotate secrets.
+- `DB_SUPABASE_HOST`, `DB_SUPABASE_PORT`, `DB_SUPABASE_NAME`, `DB_SUPABASE_USER`
+- app flags/timeouts (`APP_SECURITY_ENABLED`, `APP_AUTH_*`)
 
 ## CI/CD deploy
 
-- Workflow: `.github/workflows/deploy-gcp.yml`
+- Deploy workflow: `.github/workflows/deploy-gcp.yml`
+- Terraform governance workflow: `.github/workflows/terraform-plan-apply.yml`
 - Bootstrap guide: `infra/terraform/GITHUB_ACTIONS_DEPLOY.md`
 
 ## Full documentation

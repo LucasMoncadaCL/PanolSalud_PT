@@ -1,82 +1,80 @@
-# 09 - Guía de Variables de Entorno y Secretos
+# 09 - Guia de Variables de Entorno y Secretos
 
-Esta guía define el proceso estándar para agregar una nueva configuración al sistema sin romper deploys.
+Esta guia define el proceso estandar para agregar una nueva configuracion al sistema sin romper deploys.
 
 ## Objetivo
 
 - Mantener consistencia entre Terraform, GitHub Actions y Cloud Run.
-- Evitar errores comunes: secreto sin versión, nombre inconsistente, valor faltante en CI/CD.
-- Reducir riesgo de exposición de secretos.
+- Evitar errores comunes: variable faltante, secreto no definido o nombre inconsistente.
+- Reducir riesgo de exposicion de secretos.
 
-## Regla principal: ¿`env var` o `secret`?
+## Regla principal: env var o secret
 
-- Usa `env var` normal si el dato no es sensible (feature flags, puertos, timeouts, URLs públicas).
-- Usa `Secret Manager` si el dato es sensible (passwords, URIs con credenciales, API keys, tokens).
+- Usa `env var` normal si el dato no es sensible (flags, puertos, URLs publicas, claves publicables frontend).
+- Usa `Secret Manager` si el dato es sensible (passwords, URIs con credenciales, secrets de firma).
 
-## Estándar de nombres
+## Clasificacion oficial (actual)
 
-- `APP_*` para configuración de app no sensible.
-- `VITE_*` para variables necesarias en frontend (si es sensible, sigue en Secret Manager).
-- Secretos en mayúsculas con `_`: ejemplo `MONGODB_URI`, `JWT_ISSUER_URI`.
-- Para JWT de app usar `APP_AUTH_*` (por ejemplo `APP_AUTH_JWT_SECRET`).
+Secretos reales (Secret Manager):
+
+- `DB_SUPABASE_PASSWORD`
+- `APP_AUTH_JWT_SECRET`
+- `MONGODB_URI`
+
+Variables no sensibles (env vars Terraform / Cloud Run):
+
+- `JWT_ISSUER_URI`
+- `VITE_SUPABASE_PUBLISHABLE_KEY`
+- `DB_SUPABASE_HOST`, `DB_SUPABASE_PORT`, `DB_SUPABASE_NAME`, `DB_SUPABASE_USER`
+- `APP_SECURITY_ENABLED`, `APP_AUTH_MAX_FAILED_ATTEMPTS`, `APP_AUTH_LOCK_MINUTES`, `APP_AUTH_JWT_ISSUER`, `APP_AUTH_JWT_EXPIRATION_SECONDS`
+
+## Estandar de nombres
+
+- `APP_*` para configuracion de app.
+- `VITE_*` para configuracion publica del frontend.
+- Secretos en mayusculas con `_`: ejemplo `APP_AUTH_JWT_SECRET`.
 - Sufijo por entorno solo en GitHub (`*_DEV`, `*_PROD`), no en el nombre del secreto en GCP.
 
-## Flujo para agregar una nueva `env var` no sensible
+## Flujo para agregar una nueva env var no sensible
 
-1. Agregar variable a `locals.backend_env` o `locals.frontend_env` en:
-   - `infra/terraform/environments/dev/main.tf`
-   - `infra/terraform/environments/prod/main.tf`
-2. Agregar variable de entrada en:
-   - `infra/terraform/environments/dev/variables.tf`
-   - `infra/terraform/environments/prod/variables.tf`
-3. Mapear `TF_VAR_*` en workflow si el valor viene desde GitHub.
-4. Validar con `terraform plan` y luego `terraform apply`.
+1. Agregar la variable en `locals.backend_env` o `locals.frontend_env` en `environments/dev/main.tf` y `environments/prod/main.tf`.
+2. Agregar variable de entrada en `variables.tf` de ambos entornos.
+3. Mapear `TF_VAR_*` en workflows de Terraform.
+4. Ejecutar `terraform plan` y luego `terraform apply`.
 
-## Flujo para agregar un nuevo secreto
+## Flujo para agregar un nuevo secreto sensible
 
-1. Registrar el secreto en Terraform (contenedor del secreto):
-   - Agregar nombre a `module "secret_manager".secrets` en `dev/main.tf` y `prod/main.tf`.
-2. Referenciarlo en Cloud Run:
-   - Agregar en `secret_env_vars` del servicio correspondiente (`backend_service` o `frontend_service`) con `version = "latest"`.
-3. Crear GitHub Secret por entorno:
-   - `NUEVO_SECRETO_DEV`
-   - `NUEVO_SECRETO_PROD` (si aplica).
-4. Actualizar workflow `.github/workflows/deploy-gcp.yml`:
-   - En `Ensure secret versions exist`, agregar:
-     - variable de entorno con `${{ secrets.NUEVO_SECRETO_DEV }}`
-     - verificación `gcloud secrets versions list ...`
-     - creación condicional `gcloud secrets versions add ...` si no existe versión habilitada.
-   - En `Rotate secret versions`, agregar creación explícita de nueva versión.
-5. Ejecutar deploy en `dev` y validar que exista al menos una versión habilitada.
+1. Agregar variable sensible en `variables.tf` (`sensitive = true`).
+2. Agregar secreto en `module "secret_manager"` dentro de `secrets` y `secret_values`.
+3. Referenciar secreto en `secret_env_vars` del servicio Cloud Run que lo consume.
+4. Definir GitHub Secret por entorno (`*_DEV`, `*_PROD`) y mapearlo a `TF_VAR_*` en workflows.
+5. Ejecutar workflow `Terraform Plan/Apply`.
 
-## Checklist anti-errores (obligatorio)
+Resultado esperado:
 
-1. Nombre del secreto idéntico en:
-   - Terraform `secrets`
-   - `secret_env_vars.secret`
-   - comandos `gcloud` del workflow.
-2. Existe GitHub Secret del entorno (`*_DEV` / `*_PROD`) con valor no vacío.
-3. Existe al menos una versión habilitada en Secret Manager.
-4. El service account runtime tiene `roles/secretmanager.secretAccessor`.
-5. No usar `-target` en apply normal (solo recuperación puntual).
+- Si no existe el secreto: Terraform lo crea.
+- Si existe y no cambia el valor: sin cambios.
+- Si cambia el valor: Terraform crea nueva version de secreto (latest).
 
-## Verificación rápida post-deploy
+## Checklist anti-errores
 
-1. Confirmar versión del secreto:
-   - `gcloud secrets versions list NOMBRE_SECRETO --project <project-id>`
-2. Confirmar revisión desplegada en Cloud Run:
+1. Nombre del secreto identico en `secrets`, `secret_values` y `secret_env_vars`.
+2. Existe GitHub Secret/Variable requerido para el entorno.
+3. `terraform validate` y `terraform plan` sin errores.
+4. Runtime service account con `roles/secretmanager.secretAccessor`.
+5. No usar cambios manuales en consola para recursos gobernados.
+
+## Verificacion rapida post-apply
+
+1. Verificar versiones de secretos:
+   - `gcloud secrets versions list <SECRET> --project <project-id>`
+2. Verificar revision desplegada:
    - `gcloud run services describe <service> --region <region> --project <project-id>`
-3. Validar logs sin error de secreto faltante:
+3. Verificar logs:
    - `gcloud run services logs read <service> --region <region> --project <project-id>`
 
-## Falla común y solución
+## Recomendacion de seguridad
 
-- Error: `.../secrets/<SECRET>/versions/latest was not found`
-  - Causa: secreto existe pero no tiene versión habilitada.
-  - Solución: agregar versión con `gcloud secrets versions add` y redeploy.
-
-## Recomendación de seguridad
-
-- Mantener valores sensibles fuera de `terraform state`.
-- Preferir rotación de versiones mediante GitHub Secrets + `gcloud` en workflow.
-- Limitar acceso a environments (`dev`, `prod`) con reglas de aprobación/restricción de rama.
+- Evitar guardar secretos en `terraform.tfvars` versionados.
+- Usar GitHub Secrets + `TF_VAR_*` para valores sensibles.
+- Aplicar politicas de aprobacion para `prod`.

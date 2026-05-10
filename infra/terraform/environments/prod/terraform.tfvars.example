@@ -17,6 +17,8 @@ app_auth_max_failed_attempts      = 5
 app_auth_lock_minutes             = 15
 app_auth_jwt_issuer               = "panol-backend-prod"
 app_auth_jwt_expiration_seconds   = 3600
+jwt_issuer_uri                    = "https://replace-me.supabase.co/auth/v1"
+vite_supabase_publishable_key     = "sb_publishable_replace_me"
 
 backend_domain           = ""
 frontend_domain          = ""
@@ -26,6 +28,8 @@ backend_max_instances    = 5
 frontend_min_instances   = 1
 frontend_max_instances   = 5
 
-# Optional: set to create/update the MONGODB_URI secret version from Terraform.
-# Leave empty to manage secret versions outside Terraform.
-mongodb_uri_secret_value = ""
+# Sensitive values should be provided via TF_VAR_* in CI/CD or local shell.
+# Keep them empty in tfvars when not needed.
+mongodb_uri_secret_value           = ""
+db_supabase_password_secret_value  = ""
+app_auth_jwt_secret_value          = ""

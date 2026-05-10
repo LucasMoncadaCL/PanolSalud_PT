@@ -1,9 +1,9 @@
 ﻿# JWT Claims - Pañol Salud
 
-- Última actualización: 2026-05-09
+- Última actualización: 2026-05-10
 - Fuente: `AuthService` + configuración de seguridad backend
 
-## Claims emitidos por `/api/v1/auth/login`
+## Claims emitidos por `/api/v2/auth/login` (UUID-only)
 
 1. `iss` (string)
 - Emisor del token.
@@ -14,26 +14,18 @@
 - Identificador principal del usuario autenticado.
 - Corresponde al `uuid` canónico del usuario en PostgreSQL.
 
-3. `user_id` (number)
-- Identificador numérico del usuario autenticado.
-- Claim legado temporal para compatibilidad durante migración dual-key.
-
-4. `user_uuid` (string)
-- Refuerzo explícito del identificador UUID del usuario.
-- Debe coincidir con `sub`.
-
-5. `role` (string)
+3. `role` (string)
 - Rol normalizado del usuario.
 - Valores esperados: `COORDINADOR`, `DIRECTOR`, `DOCENTE`.
 
-6. `jti` (string)
+4. `jti` (string)
 - Identificador único del token (UUID).
 - Se usa para revocación en logout.
 
-7. `iat` (number, epoch seconds)
+5. `iat` (number, epoch seconds)
 - Fecha/hora de emisión.
 
-8. `exp` (number, epoch seconds)
+6. `exp` (number, epoch seconds)
 - Fecha/hora de expiración.
 
 ## Header JWT
@@ -43,5 +35,6 @@
 ## Notas
 
 - El sistema actual usa firma simétrica `HS256`.
+- El claim `sub` es la única fuente de identidad de usuario en el token.
 - Para estrategia de migración a `RS256`, revisar:
   - `docs/decisiones-arquitectura/ADR-002-plan-migracion-rs256.md`

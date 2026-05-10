@@ -1,21 +1,55 @@
-﻿# 05 - Secrets y Configuración por Entorno
+# 05 - Secrets y Configuracion por Entorno
 
-## Principio de diseño
+## Principio de diseno
 
-- Terraform crea infraestructura y contenedores de secretos.
-- Valores sensibles viven en GitHub Secrets y/o Secret Manager.
+- Terraform es la fuente de verdad de infraestructura y configuracion runtime.
+- Los valores sensibles entran por GitHub Secrets (`TF_VAR_*`) y se publican en Secret Manager.
+- Los valores no sensibles entran por GitHub Variables (`TF_VAR_*`) y se inyectan como `env_vars`.
 - No se guardan secretos en el repositorio.
 
-## Secrets de GitHub (dev)
+## Clasificacion oficial
+
+### Secretos reales (Secret Manager)
+
+- `DB_SUPABASE_PASSWORD`
+- `APP_AUTH_JWT_SECRET`
+- `MONGODB_URI`
+
+### Variables no sensibles (Cloud Run env vars)
+
+- `JWT_ISSUER_URI`
+- `VITE_SUPABASE_PUBLISHABLE_KEY`
+- `DB_SUPABASE_HOST`
+- `DB_SUPABASE_PORT`
+- `DB_SUPABASE_NAME`
+- `DB_SUPABASE_USER`
+- `APP_SECURITY_ENABLED`
+- `APP_AUTH_MAX_FAILED_ATTEMPTS`
+- `APP_AUTH_LOCK_MINUTES`
+- `APP_AUTH_JWT_ISSUER`
+- `APP_AUTH_JWT_EXPIRATION_SECONDS`
+
+## GitHub Secrets requeridos
+
+### dev
 
 - `GCP_WIF_PROVIDER_DEV`
 - `GCP_SERVICE_ACCOUNT_DEV`
 - `DB_SUPABASE_PASSWORD_DEV`
-- `JWT_ISSUER_URI_DEV`
 - `APP_AUTH_JWT_SECRET_DEV`
-- `VITE_SUPABASE_PUBLISHABLE_KEY_DEV`
+- `MONGODB_URI_DEV`
 
-## Variables de GitHub (dev)
+### prod
+
+- `GCP_WIF_PROVIDER_PROD`
+- `GCP_SERVICE_ACCOUNT_PROD`
+- `DB_SUPABASE_PASSWORD_PROD`
+- `APP_AUTH_JWT_SECRET_PROD`
+- `MONGODB_URI_PROD`
+
+## GitHub Variables requeridas
+
+### dev
 
 - `GCP_PROJECT_ID_DEV`
 - `GCP_REGION_DEV`
@@ -30,27 +64,24 @@
 - `APP_AUTH_LOCK_MINUTES_DEV`
 - `APP_AUTH_JWT_ISSUER_DEV`
 - `APP_AUTH_JWT_EXPIRATION_SECONDS_DEV`
+- `JWT_ISSUER_URI_DEV`
+- `VITE_SUPABASE_PUBLISHABLE_KEY_DEV`
+- `BACKEND_IMAGE_DEV`
+- `FRONTEND_IMAGE_DEV`
 
-## Equivalente en prod
+### prod
 
-Duplicar estructura con sufijo `_PROD`.
+Misma estructura con sufijo `_PROD`.
 
-## Secretos en GCP Secret Manager
+## Comportamiento esperado en apply
 
-Contenedores esperados:
-
-- `DB_SUPABASE_PASSWORD`
-- `JWT_ISSUER_URI`
-- `APP_AUTH_JWT_SECRET`
-- `VITE_SUPABASE_PUBLISHABLE_KEY`
-
-## Rotación
-
-- Manual desde workflow (`rotate_secrets=true`) o por comando `gcloud`.
-- Mantener inventario de versiones activas.
+- Secreto inexistente: Terraform crea el secreto y su version.
+- Secreto sin cambio: no hay cambios.
+- Secreto con nuevo valor: Terraform crea nueva version `latest`.
 
 ## Consideraciones de seguridad
 
-- Aplicar principio de mínimo privilegio en SA de deploy y runtime.
-- Evitar permisos editor/owner para workflows.
-- Revisar periódicamente IAM bindings y uso de secretos.
+- Principio de minimo privilegio para cuentas de deploy/runtime.
+- No exponer secretos en outputs/logs.
+- Revisar IAM bindings periodicamente.
+- Mantener aprobacion manual para `prod`.

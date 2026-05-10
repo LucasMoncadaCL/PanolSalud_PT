@@ -4,7 +4,6 @@ import java.time.OffsetDateTime;
 import java.util.UUID;
 
 public record AuthUserRow(
-        Integer id,
         UUID uuid,
         String rut,
         String passwordHash,

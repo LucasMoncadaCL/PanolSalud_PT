@@ -126,3 +126,23 @@ variable "mongodb_uri_secret_value" {
   default   = ""
   sensitive = true
 }
+
+variable "db_supabase_password_secret_value" {
+  type      = string
+  default   = ""
+  sensitive = true
+}
+
+variable "app_auth_jwt_secret_value" {
+  type      = string
+  default   = ""
+  sensitive = true
+}
+
+variable "jwt_issuer_uri" {
+  type = string
+}
+
+variable "vite_supabase_publishable_key" {
+  type = string
+}

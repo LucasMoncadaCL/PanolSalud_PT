@@ -17,11 +17,6 @@ on:
         type: choice
         options:
           - dev
-      rotate_secrets:
-        description: "Rotate secret versions before deploy"
-        required: false
-        default: false
-        type: boolean
 
 permissions:
   contents: read
@@ -98,6 +93,11 @@ jobs:
           TF_VAR_app_auth_lock_minutes: ${{ vars.APP_AUTH_LOCK_MINUTES_DEV }}
           TF_VAR_app_auth_jwt_issuer: ${{ vars.APP_AUTH_JWT_ISSUER_DEV }}
           TF_VAR_app_auth_jwt_expiration_seconds: ${{ vars.APP_AUTH_JWT_EXPIRATION_SECONDS_DEV }}
+          TF_VAR_jwt_issuer_uri: ${{ vars.JWT_ISSUER_URI_DEV }}
+          TF_VAR_vite_supabase_publishable_key: ${{ vars.VITE_SUPABASE_PUBLISHABLE_KEY_DEV }}
+          TF_VAR_db_supabase_password_secret_value: ${{ secrets.DB_SUPABASE_PASSWORD_DEV }}
+          TF_VAR_mongodb_uri_secret_value: ${{ secrets.MONGODB_URI_DEV }}
+          TF_VAR_app_auth_jwt_secret_value: ${{ secrets.APP_AUTH_JWT_SECRET_DEV }}
           TF_VAR_runtime_sa_user_members: '["serviceAccount:${{ secrets.GCP_SERVICE_ACCOUNT_DEV }}"]'
           TF_VAR_backend_domain: ""
           TF_VAR_frontend_domain: ""
@@ -106,52 +106,6 @@ jobs:
             -target=module.artifact_registry \
             -target=module.secret_manager \
             -target=module.runtime_iam
-
-      - name: Ensure secret versions exist (dev)
-        env:
-          GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID_DEV }}
-          DB_SUPABASE_PASSWORD: ${{ secrets.DB_SUPABASE_PASSWORD_DEV }}
-          MONGODB_URI: ${{ secrets.MONGODB_URI_DEV }}
-          JWT_ISSUER_URI: ${{ secrets.JWT_ISSUER_URI_DEV }}
-          APP_AUTH_JWT_SECRET: ${{ secrets.APP_AUTH_JWT_SECRET_DEV }}
-          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY_DEV }}
-        run: |
-          DB_SECRET_VERSION="$(gcloud secrets versions list DB_SUPABASE_PASSWORD --project "$GCP_PROJECT_ID" --filter="state:ENABLED" --limit=1 --format='value(name)')"
-          if [ -z "$DB_SECRET_VERSION" ]; then
-            printf "%s" "$DB_SUPABASE_PASSWORD" | gcloud secrets versions add DB_SUPABASE_PASSWORD --project "$GCP_PROJECT_ID" --data-file=-
-          fi
-          MONGODB_SECRET_VERSION="$(gcloud secrets versions list MONGODB_URI --project "$GCP_PROJECT_ID" --filter="state:ENABLED" --limit=1 --format='value(name)')"
-          if [ -z "$MONGODB_SECRET_VERSION" ]; then
-            printf "%s" "$MONGODB_URI" | gcloud secrets versions add MONGODB_URI --project "$GCP_PROJECT_ID" --data-file=-
-          fi
-          JWT_SECRET_VERSION="$(gcloud secrets versions list JWT_ISSUER_URI --project "$GCP_PROJECT_ID" --filter="state:ENABLED" --limit=1 --format='value(name)')"
-          if [ -z "$JWT_SECRET_VERSION" ]; then
-            printf "%s" "$JWT_ISSUER_URI" | gcloud secrets versions add JWT_ISSUER_URI --project "$GCP_PROJECT_ID" --data-file=-
-          fi
-          APP_AUTH_JWT_SECRET_VERSION="$(gcloud secrets versions list APP_AUTH_JWT_SECRET --project "$GCP_PROJECT_ID" --filter="state:ENABLED" --limit=1 --format='value(name)')"
-          if [ -z "$APP_AUTH_JWT_SECRET_VERSION" ]; then
-            printf "%s" "$APP_AUTH_JWT_SECRET" | gcloud secrets versions add APP_AUTH_JWT_SECRET --project "$GCP_PROJECT_ID" --data-file=-
-          fi
-          VITE_SECRET_VERSION="$(gcloud secrets versions list VITE_SUPABASE_PUBLISHABLE_KEY --project "$GCP_PROJECT_ID" --filter="state:ENABLED" --limit=1 --format='value(name)')"
-          if [ -z "$VITE_SECRET_VERSION" ]; then
-            printf "%s" "$VITE_SUPABASE_PUBLISHABLE_KEY" | gcloud secrets versions add VITE_SUPABASE_PUBLISHABLE_KEY --project "$GCP_PROJECT_ID" --data-file=-
-          fi
-
-      - name: Rotate secret versions (dev)
-        if: github.event_name == 'workflow_dispatch' && inputs.rotate_secrets == true
-        env:
-          GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID_DEV }}
-          DB_SUPABASE_PASSWORD: ${{ secrets.DB_SUPABASE_PASSWORD_DEV }}
-          MONGODB_URI: ${{ secrets.MONGODB_URI_DEV }}
-          JWT_ISSUER_URI: ${{ secrets.JWT_ISSUER_URI_DEV }}
-          APP_AUTH_JWT_SECRET: ${{ secrets.APP_AUTH_JWT_SECRET_DEV }}
-          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY_DEV }}
-        run: |
-          printf "%s" "$DB_SUPABASE_PASSWORD" | gcloud secrets versions add DB_SUPABASE_PASSWORD --project "$GCP_PROJECT_ID" --data-file=-
-          printf "%s" "$MONGODB_URI" | gcloud secrets versions add MONGODB_URI --project "$GCP_PROJECT_ID" --data-file=-
-          printf "%s" "$JWT_ISSUER_URI" | gcloud secrets versions add JWT_ISSUER_URI --project "$GCP_PROJECT_ID" --data-file=-
-          printf "%s" "$APP_AUTH_JWT_SECRET" | gcloud secrets versions add APP_AUTH_JWT_SECRET --project "$GCP_PROJECT_ID" --data-file=-
-          printf "%s" "$VITE_SUPABASE_PUBLISHABLE_KEY" | gcloud secrets versions add VITE_SUPABASE_PUBLISHABLE_KEY --project "$GCP_PROJECT_ID" --data-file=-
 
       - name: Generate jOOQ sources (backend)
         working-directory: Producto/backendpanol
@@ -202,6 +156,11 @@ jobs:
           TF_VAR_app_auth_lock_minutes: ${{ vars.APP_AUTH_LOCK_MINUTES_DEV }}
           TF_VAR_app_auth_jwt_issuer: ${{ vars.APP_AUTH_JWT_ISSUER_DEV }}
           TF_VAR_app_auth_jwt_expiration_seconds: ${{ vars.APP_AUTH_JWT_EXPIRATION_SECONDS_DEV }}
+          TF_VAR_jwt_issuer_uri: ${{ vars.JWT_ISSUER_URI_DEV }}
+          TF_VAR_vite_supabase_publishable_key: ${{ vars.VITE_SUPABASE_PUBLISHABLE_KEY_DEV }}
+          TF_VAR_db_supabase_password_secret_value: ${{ secrets.DB_SUPABASE_PASSWORD_DEV }}
+          TF_VAR_mongodb_uri_secret_value: ${{ secrets.MONGODB_URI_DEV }}
+          TF_VAR_app_auth_jwt_secret_value: ${{ secrets.APP_AUTH_JWT_SECRET_DEV }}
           TF_VAR_runtime_sa_user_members: '["serviceAccount:${{ secrets.GCP_SERVICE_ACCOUNT_DEV }}"]'
           TF_VAR_backend_domain: ""
           TF_VAR_frontend_domain: ""

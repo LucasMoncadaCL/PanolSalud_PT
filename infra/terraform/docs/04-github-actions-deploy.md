@@ -1,52 +1,64 @@
-﻿# 04 - GitHub Actions: Deploy de Infraestructura
+# 04 - GitHub Actions: Deploy e IaC Terraform
 
-## Workflow principal
+## Workflows activos
 
-Archivo:
+- Deploy de aplicaciones e infraestructura: `.github/workflows/deploy-gcp.yml`
+- Gobierno IaC (plan/apply): `.github/workflows/terraform-plan-apply.yml`
 
-- `.github/workflows/deploy-gcp.yml`
+## Modelo operativo recomendado
 
-## Triggers
+- `deploy-gcp.yml`: pipeline de build/deploy del stack (backend/frontend + Terraform).
+- `terraform-plan-apply.yml`: pipeline de gobernanza Terraform para validacion, plan y apply controlado por entorno.
 
-- `push` a rama `dev` con cambios relevantes (infra/backend/frontend/workflow).
-- `workflow_dispatch` manual con input:
+## Triggers principales
+
+### `deploy-gcp.yml`
+
+- `push` en `dev` (segun paths configurados)
+- `workflow_dispatch` para ejecucion manual en `dev` o `prod`
+
+### `terraform-plan-apply.yml`
+
+- `push` en `dev` para cambios IaC
+- `workflow_dispatch` con:
   - `environment` (`dev` | `prod`)
-  - `rotate_secrets` (`true` | `false`)
+  - `apply` (`true` | `false`)
 
-## Seguridad de autenticación
+## Seguridad de autenticacion
 
 - `permissions: id-token: write`
-- `google-github-actions/auth@v2` con WIF provider + service account
+- `google-github-actions/auth@v2` con Workload Identity Federation
+- No se usan llaves JSON persistidas en GitHub.
 
-No se usan llaves JSON almacenadas en GitHub.
+## Flujo Terraform (recomendado)
 
-## Flujo job `deploy-dev`
+1. `terraform fmt -check`
+2. `terraform init`
+3. `terraform validate`
+4. `terraform plan`
+5. `terraform apply` (automatico en `dev`, manual/aprobado en `prod`)
 
-1. Checkout
-2. Auth GCP por WIF
-3. Setup gcloud + terraform
-4. Cálculo de tags de imágenes
-5. `terraform init` con backend bucket `GCP_TFSTATE_BUCKET_DEV`
-6. Bootstrap targeted (`artifact_registry`, `secret_manager`, `runtime_iam`)
-7. (Opcional) rotación de secretos si `rotate_secrets=true`
-8. Build backend/frontend
-9. Push imágenes a Artifact Registry
-10. `terraform apply` completo (Cloud Run actualizado)
+## Convenciones de configuracion
 
-## Flujo job `deploy-prod`
-
-- Solo manual (`workflow_dispatch` con `environment=prod`).
-- Misma estructura que dev, con variables/secrets de prod.
-
-## Control de costos y estabilidad
-
-- `concurrency.cancel-in-progress=true` para evitar pipelines redundantes.
-- Rotación de secretos desactivada por defecto en push.
+- Secretos sensibles via GitHub Secrets -> `TF_VAR_*` -> Secret Manager:
+  - `DB_SUPABASE_PASSWORD`
+  - `APP_AUTH_JWT_SECRET`
+  - `MONGODB_URI`
+- Configuracion no sensible via GitHub Variables -> `TF_VAR_*` -> `env_vars` de Cloud Run:
+  - `JWT_ISSUER_URI`
+  - `VITE_SUPABASE_PUBLISHABLE_KEY`
+  - host/port/name/user DB y flags de app
 
 ## Requisitos en GitHub
 
-- Environment `dev` y `prod` creados.
-- Branch restriction recomendada:
-  - `dev` env -> rama `dev`
-  - `prod` env -> rama `main`
-- Secrets y variables definidos correctamente (ver docs 05).
+- Environments `dev` y `prod` creados.
+- Reglas de proteccion recomendadas:
+  - `dev`: branch `dev`.
+  - `prod`: aprobacion manual obligatoria y branch protegida.
+- Variables/secrets completos por entorno (ver docs 05 y 09).
+
+## Buenas practicas
+
+- No editar secretos manualmente en Cloud Run para recursos gobernados.
+- No hacer cambios en consola para recursos ya administrados por Terraform.
+- Si hay emergencia manual, regularizar en Terraform en el siguiente PR.

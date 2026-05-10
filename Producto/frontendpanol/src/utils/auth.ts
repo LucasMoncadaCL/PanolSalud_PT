@@ -3,8 +3,6 @@
 interface TokenPayload {
   exp?: number;
   sub?: string;
-  user_id?: number;
-  user_uuid?: string;
   role?: string;
   user_role?: string;
   roles?: string[];
@@ -72,14 +70,12 @@ export function isAuthenticated(): boolean {
 }
 
 export function getUserIdFromToken(): number | null {
-  const payload = parseTokenPayload();
-  return typeof payload?.user_id === "number" ? payload.user_id : null;
+  return null;
 }
 
 export function getUserUuidFromToken(): string | null {
   const payload = parseTokenPayload();
   if (typeof payload?.sub === "string" && payload.sub.length > 0) return payload.sub;
-  if (typeof payload?.user_uuid === "string" && payload.user_uuid.length > 0) return payload.user_uuid;
   return null;
 }
 

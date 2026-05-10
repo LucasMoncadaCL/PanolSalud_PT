@@ -4,15 +4,15 @@ export interface InventoryMovementDetail {
   quantity: number;
   timestamp: string;
   notes: string | null;
-  implement_id: number;
-  performed_by: string;
+  implement_uuid: string | null;
+  performed_by: string | null;
 }
 
 export interface ImplementCreatePayload {
   name: string;
-  category_id: number;
+  categoryUuid: string;
   item_type: "consumable" | "reusable" | "individual";
-  location_id: number;
+  locationUuid: string;
   description: string | null;
   barcode: string | null;
   img_url: string | null;
@@ -22,8 +22,8 @@ export interface ImplementCreatePayload {
 
 export interface ImplementUpdatePayload {
   name: string;
-  category_id: number | null;
-  location_id: number;
+  categoryUuid: string;
+  locationUuid: string;
   item_type: "consumable" | "reusable" | "individual";
   description: string | null;
   barcode: string | null;
@@ -33,7 +33,7 @@ export interface ImplementUpdatePayload {
 }
 
 export interface ImplementSummary {
-  id: number;
+  uuid: string;
   name: string;
   description?: string | null;
   barcode?: string | null;
@@ -41,12 +41,12 @@ export interface ImplementSummary {
   active?: boolean;
   available?: boolean;
   category: {
-    id: number;
+    uuid: string;
     name: string;
     active: boolean;
   } | null;
   location: {
-    id: number;
+    uuid: string;
     name: string;
     description: string | null;
   } | null;
@@ -80,28 +80,28 @@ export const STOCK_STATUS_LABELS: Record<ImplementStockFilterStatus, string> = {
 
 export interface ImplementFilters {
   name?: string;
-  categoryId?: number | null;
+  categoryUuid?: string | null;
   stockStatus?: ImplementStockFilterStatus;
 }
 
 export interface ImplementDetail {
-  id: number;
+  uuid: string;
   name: string;
   description: string | null;
   item_type: "consumable" | "reusable" | "individual" | null;
   display_location?: string | null;
   category: {
-    id: number;
+    uuid: string;
     name: string;
     active: boolean;
   } | null;
   location: {
-    id: number;
+    uuid: string;
     name: string;
     description: string | null;
   } | null;
-  categoryId: number | null;
-  locationId: number | null;
+  category_uuid: string | null;
+  location_uuid: string | null;
   min_stock: number | null;
   barcode: string | null;
   img_url: string | null;

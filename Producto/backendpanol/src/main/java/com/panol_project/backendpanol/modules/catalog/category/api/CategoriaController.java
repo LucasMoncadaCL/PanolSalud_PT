@@ -25,7 +25,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/api/categorias")
+@RequestMapping("/internal/legacy/api/categorias")
 public class CategoriaController {
 
     private final CategoriaService service;

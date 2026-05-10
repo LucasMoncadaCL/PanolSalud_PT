@@ -22,11 +22,11 @@ export function TopUsersTable({ rows }: { rows: TopUserRow[] }) {
           </thead>
           <tbody>
             {rows.map((row) => (
-              <tr key={row.name}>
+              <tr key={row.name || "usuario-sin-nombre"}>
                 <td>
                   <div className="director-user-cell">
-                    <span className="director-avatar" aria-hidden="true">{row.name.split(" ").map((x) => x[0]).slice(0, 2).join("")}</span>
-                    <span>{row.name}</span>
+                    <span className="director-avatar" aria-hidden="true">{(row.name || "Usuario").split(" ").map((x) => x?.[0] ?? "").filter(Boolean).slice(0, 2).join("").toUpperCase()}</span>
+                    <span>{row.name || "Usuario"}</span>
                   </div>
                 </td>
                 <td><span className="badge badge--inactive">{row.role}</span></td>

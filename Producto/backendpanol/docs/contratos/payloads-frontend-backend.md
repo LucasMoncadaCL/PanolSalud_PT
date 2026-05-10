@@ -1,6 +1,6 @@
 ﻿# Payloads Frontend / Backend
 
-- Última actualización: 2026-05-07
+- Última actualización: 2026-05-10
 - Alcance: contratos JSON usados por frontend y backend
 
 ## 1) Payload de error público (backend -> frontend)
@@ -37,8 +37,8 @@ Formato estructurado para observabilidad (GCP/log sinks):
   "endpoint_tag": "auth",
   "code": 400,
   "error_type": "HttpMessageNotReadableException",
-  "user_id": "Ninguno",
-  "path": "/api/v1/auth/login",
+  "user_uuid": "Ninguno",
+  "path": "/api/v2/auth/login",
   "cause": "Detalle técnico del error"
 }
 ```
@@ -50,13 +50,13 @@ Campos:
 3. `endpoint_tag` (string)
 4. `code` (number)
 5. `error_type` (string)
-6. `user_id` (string|number)
+6. `user_uuid` (string UUID | `"Ninguno"`)
 7. `path` (string)
 8. `cause` (string)
 
 ## 3) Payload de login
 
-### Request (`POST /api/v1/auth/login`)
+### Request (`POST /api/v2/auth/login`)
 
 ```json
 {
@@ -80,7 +80,7 @@ Nota frontend:
 
 ## 4) Payload de logout
 
-### Request (`POST /api/v1/auth/logout`)
+### Request (`POST /api/v2/auth/logout`)
 
 - Sin body.
 - Requiere header `Authorization: Bearer <jwt>`.

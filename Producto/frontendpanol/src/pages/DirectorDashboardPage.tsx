@@ -66,7 +66,7 @@ function buildDashboardData(
 
   const alerts: AlertItem[] = [
     ...lowStockImplements.slice(0, 3).map((row, idx) => ({
-      id: `low-stock-${row.id}-${idx}`,
+      id: `low-stock-${row.uuid}-${idx}`,
       severity: "critical" as const,
       text: `${row.name} bajo stock minimo`,
     })),
@@ -83,9 +83,10 @@ function buildDashboardData(
 
   const movementByUser = new Map<string, { requests: number; delays: number }>();
   for (const row of movementRows) {
-    const current = movementByUser.get(row.performed_by) ?? { requests: 0, delays: 0 };
+    const performer = row.performed_by?.trim() || "Usuario no identificado";
+    const current = movementByUser.get(performer) ?? { requests: 0, delays: 0 };
     current.requests += 1;
-    movementByUser.set(row.performed_by, current);
+    movementByUser.set(performer, current);
   }
 
   const topUsers: TopUserRow[] = Array.from(movementByUser.entries())
@@ -101,15 +102,18 @@ function buildDashboardData(
     .sort((a, b) => b.requests - a.requests)
     .slice(0, 5);
 
-  const implementNameById = new Map<number, string>(implementsRows.map((row) => [row.id, row.name]));
-  const movementByImplement = new Map<number, number>();
+  const implementNameById = new Map<string, string>(implementsRows.map((row) => [row.uuid, row.name]));
+  const movementByImplement = new Map<string, number>();
   for (const row of movementRows) {
-    movementByImplement.set(row.implement_id, (movementByImplement.get(row.implement_id) ?? 0) + 1);
+    if (!row.implement_uuid) {
+      continue;
+    }
+    movementByImplement.set(row.implement_uuid, (movementByImplement.get(row.implement_uuid) ?? 0) + 1);
   }
 
   const topImplements: MostRequestedItemRow[] = Array.from(movementByImplement.entries())
     .map(([implementId, total]) => {
-      const implement = implementsRows.find((row) => row.id === implementId);
+      const implement = implementsRows.find((row) => row.uuid === implementId);
       const available = implement?.stock?.available ?? 0;
       const stockTone: "ok" | "warn" | "critical" = available <= 3 ? "critical" : available <= 10 ? "warn" : "ok";
       return {

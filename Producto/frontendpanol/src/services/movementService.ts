@@ -10,17 +10,17 @@ export interface RegisterMovementPayload {
 }
 
 export async function registerManualMovement(
-  implementId: number,
+  implementUuid: string,
   payload: RegisterMovementPayload,
 ): Promise<InventoryMovementDetail> {
   const response = await apiClient.post<InventoryMovementDetail>(
-    `/api/implements/${implementId}/movements`,
+    `/api/v2/implements/${implementUuid}/movements`,
     payload,
   );
   return response.data;
 }
 
 export async function fetchInventoryMovements(): Promise<InventoryMovementDetail[]> {
-  const response = await apiClient.get<InventoryMovementDetail[]>("/api/implements/movements");
+  const response = await apiClient.get<InventoryMovementDetail[]>("/api/v2/implements/movements");
   return response.data;
 }

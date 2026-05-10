@@ -37,8 +37,8 @@ public class UserAdminService {
         String role = normalizeRole(request.role());
         String normalizedRut = normalizeRut(request.rut());
         String normalizedEmail = normalizeEmail(request.email());
-        Integer roleId = findRoleId(role);
-        if (roleId == null) {
+        UUID roleUuid = findRoleUuid(role);
+        if (roleUuid == null) {
             throw new ApiException(HttpStatus.BAD_REQUEST, "ROLE_NOT_SUPPORTED", "Rol invalido");
         }
 
@@ -61,42 +61,43 @@ public class UserAdminService {
         }
 
         dsl.insertInto(table(name("user")))
-                .columns(field(name("name")), field(name("rut")), field(name("email")), field(name("password_hash")), field(name("role_id")), field(name("active")))
+                .columns(field(name("name")), field(name("rut")), field(name("email")), field(name("password_hash")), field(name("role_uuid")), field(name("active")))
                 .values(
                         request.name().trim(),
                         normalizedRut,
                         normalizedEmail,
                         BCrypt.hashpw(request.password(), BCrypt.gensalt()),
-                        roleId,
+                        roleUuid,
                         true)
                 .execute();
 
-        auditLogService.log("user_created", getUserId(jwt), null, Map.of("rut", normalizedRut, "email", normalizedEmail == null ? "" : normalizedEmail, "role", role));
+        auditLogService.log("user_created", getUserUuid(jwt), null, Map.of("rut", normalizedRut, "email", normalizedEmail == null ? "" : normalizedEmail, "role", role));
     }
 
-    public void changeRole(String userRef, String roleInput, Jwt jwt) {
+    public void changeRole(UUID userUuid, String roleInput, Jwt jwt) {
         String role = normalizeRole(roleInput);
-        Integer roleId = findRoleId(role);
-        if (roleId == null) {
+        UUID roleUuid = findRoleUuid(role);
+        if (roleUuid == null) {
             throw new ApiException(HttpStatus.BAD_REQUEST, "ROLE_NOT_SUPPORTED", "Rol invalido");
         }
-        Integer userId = resolveUserId(userRef);
-
         int updated = dsl.update(table(name("user")))
-                .set(field(name("role_id")), roleId)
-                .where(field(name("id")).eq(userId))
+                .set(field(name("role_uuid"), UUID.class), roleUuid)
+                .where(field(name("uuid"), UUID.class).eq(userUuid))
                 .execute();
 
         if (updated == 0) {
             throw new ApiException(HttpStatus.NOT_FOUND, "USER_NOT_FOUND", "Usuario no encontrado");
         }
 
-        auditLogService.log("user_role_changed", getUserId(jwt), userId, Map.of("new_role", role));
+        auditLogService.log("user_role_changed", getUserUuid(jwt), userUuid, Map.of("new_role", role));
+    }
+
+    public void changeRole(String userRef, String roleInput, Jwt jwt) {
+        changeRole(resolveUserUuid(userRef), roleInput, jwt);
     }
 
     public List<UserAdminSummaryResponse> listUsers() {
         return dsl.select(
-                        field(name("user", "id"), Integer.class),
                         field(name("user", "uuid"), UUID.class),
                         field(name("user", "name"), String.class),
                         field(name("user", "rut"), String.class),
@@ -105,29 +106,27 @@ public class UserAdminService {
                         field(name("user", "active"), Boolean.class),
                         field(name("user", "created_at"), OffsetDateTime.class))
                 .from(table(name("user")))
-                .join(table(name("role"))).on(field(name("role", "id")).eq(field(name("user", "role_id"))))
-                .orderBy(field(name("user", "id")).asc())
+                .join(table(name("role"))).on(field(name("role", "uuid")).eq(field(name("user", "role_uuid"))))
+                .orderBy(field(name("user", "created_at")).desc())
                 .fetch(record -> new UserAdminSummaryResponse(
-                        record.value1(),
-                        record.value2() == null ? null : record.value2().toString(),
+                        record.value1() == null ? null : record.value1().toString(),
+                        record.value2(),
                         record.value3(),
                         record.value4(),
-                        record.value5(),
-                        normalizeRole(record.value6()),
-                        Boolean.TRUE.equals(record.value7()),
-                        record.value8()));
+                        normalizeRoleForResponse(record.value5()),
+                        Boolean.TRUE.equals(record.value6()),
+                        record.value7()));
     }
 
-    public void setActive(String userRef, boolean active, Jwt jwt) {
-        Integer userId = resolveUserId(userRef);
-        Integer actorId = getUserId(jwt);
-        if (actorId != null && actorId.equals(userId) && !active) {
+    public void setActive(UUID userUuid, boolean active, Jwt jwt) {
+        UUID actorUuid = getUserUuid(jwt);
+        if (actorUuid != null && actorUuid.equals(userUuid) && !active) {
             throw new ApiException(HttpStatus.BAD_REQUEST, "USER_SELF_DEACTIVATION_NOT_ALLOWED", "No puedes desactivar tu propio usuario");
         }
 
         int updated = dsl.update(table(name("user")))
                 .set(field(name("active")), active)
-                .where(field(name("id")).eq(userId))
+                .where(field(name("uuid"), UUID.class).eq(userUuid))
                 .execute();
 
         if (updated == 0) {
@@ -136,14 +135,20 @@ public class UserAdminService {
 
         auditLogService.log(
                 active ? "user_activated" : "user_deactivated",
-                actorId,
-                userId,
+                actorUuid,
+                userUuid,
                 Map.of("active", active));
     }
 
-    public void updateUser(String userRef, UpdateUserRequest request, Jwt jwt) {
-        Integer userId = resolveUserId(userRef);
-        Integer actorId = getUserId(jwt);
+    public void setActive(String userRef, boolean active, Jwt jwt) {
+        setActive(resolveUserUuid(userRef), active, jwt);
+    }
+
+    public void updateUser(UUID userUuid, UpdateUserRequest request, Jwt jwt) {
+        if (findUserIdOrNullByUuid(userUuid) == null) {
+            throw new ApiException(HttpStatus.NOT_FOUND, "USER_NOT_FOUND", "Usuario no encontrado");
+        }
+        UUID actorUuid = getUserUuid(jwt);
         String normalizedRut = normalizeRut(request.rut());
         String normalizedEmail = normalizeEmail(request.email());
 
@@ -160,7 +165,7 @@ public class UserAdminService {
         Integer duplicated = dsl.selectCount()
                 .from(table(name("user")))
                 .where(duplicateCondition)
-                .and(field(name("id")).ne(userId))
+                .and(field(name("uuid"), UUID.class).ne(userUuid))
                 .fetchOne(0, Integer.class);
 
         if (duplicated != null && duplicated > 0) {
@@ -171,25 +176,33 @@ public class UserAdminService {
                 .set(field(name("name")), request.name().trim())
                 .set(field(name("rut")), normalizedRut)
                 .set(field(name("email")), normalizedEmail)
-                .where(field(name("id")).eq(userId))
+                .where(field(name("uuid"), UUID.class).eq(userUuid))
                 .execute();
 
         if (updated == 0) {
             throw new ApiException(HttpStatus.NOT_FOUND, "USER_NOT_FOUND", "Usuario no encontrado");
         }
 
-        auditLogService.log("user_updated", actorId, userId, Map.of("rut", normalizedRut, "email", normalizedEmail == null ? "" : normalizedEmail));
+        auditLogService.log("user_updated", actorUuid, userUuid, Map.of("rut", normalizedRut, "email", normalizedEmail == null ? "" : normalizedEmail));
+    }
+
+    public void updateUser(String userRef, UpdateUserRequest request, Jwt jwt) {
+        updateUser(resolveUserUuid(userRef), request, jwt);
+    }
+
+    public void deleteUser(UUID userUuid, Jwt jwt) {
+        setActive(userUuid, false, jwt);
     }
 
     public void deleteUser(String userRef, Jwt jwt) {
-        setActive(userRef, false, jwt);
+        deleteUser(resolveUserUuid(userRef), jwt);
     }
 
-    private Integer findRoleId(String normalizedRole) {
-        return dsl.select(field(name("id"), Integer.class))
+    private UUID findRoleUuid(String normalizedRole) {
+        return dsl.select(field(name("uuid"), UUID.class))
                 .from(table(name("role")))
                 .where(field(name("name")).likeIgnoreCase('%' + roleKey(normalizedRole) + '%'))
-                .fetchOne(0, Integer.class);
+                .fetchOne(0, UUID.class);
     }
 
     private String normalizeRole(String roleRaw) {
@@ -200,6 +213,17 @@ public class UserAdminService {
         if (!ALLOWED_ROLES.contains(role)) {
             throw new ApiException(HttpStatus.BAD_REQUEST, "ROLE_NOT_SUPPORTED", "Rol invalido");
         }
+        return role;
+    }
+
+    private String normalizeRoleForResponse(String roleRaw) {
+        if (roleRaw == null || roleRaw.isBlank()) {
+            return "DOCENTE";
+        }
+        String role = roleRaw.trim().toUpperCase();
+        if (role.contains("DIRECTOR")) return "DIRECTOR";
+        if (role.contains("COORD")) return "COORDINADOR";
+        if (role.contains("DOCENTE")) return "DOCENTE";
         return role;
     }
 
@@ -221,20 +245,21 @@ public class UserAdminService {
         return normalized.isBlank() ? null : normalized;
     }
 
-    private Integer getUserId(Jwt jwt) {
+    private UUID getUserUuid(Jwt jwt) {
         if (jwt == null) return null;
-        Number userId = jwt.getClaim("user_id");
-        return userId == null ? null : userId.intValue();
+        String subject = jwt.getSubject();
+        if (subject != null && !subject.isBlank()) {
+            UUID uuid = tryParseUuid(subject);
+            if (uuid != null && findUserIdOrNullByUuid(uuid) != null) {
+                return uuid;
+            }
+        }
+        return null;
     }
 
-    private Integer resolveUserId(String userRef) {
+    private UUID resolveUserUuid(String userRef) {
         if (userRef == null || userRef.isBlank()) {
             throw new ApiException(HttpStatus.BAD_REQUEST, "USER_ID_INVALID", "Usuario no encontrado");
-        }
-
-        Integer legacyId = tryParseInteger(userRef);
-        if (legacyId != null) {
-            return legacyId;
         }
 
         UUID uuid = tryParseUuid(userRef);
@@ -242,23 +267,18 @@ public class UserAdminService {
             throw new ApiException(HttpStatus.BAD_REQUEST, "USER_ID_INVALID", "Usuario no encontrado");
         }
 
-        Integer userId = dsl.select(field(name("id"), Integer.class))
+        if (findUserIdOrNullByUuid(uuid) == null) {
+            throw new ApiException(HttpStatus.NOT_FOUND, "USER_NOT_FOUND", "Usuario no encontrado");
+        }
+        return uuid;
+    }
+
+    private Integer findUserIdOrNullByUuid(UUID uuid) {
+        Integer userId = dsl.selectCount()
                 .from(table(name("user")))
                 .where(field(name("uuid")).eq(uuid))
                 .fetchOne(0, Integer.class);
-
-        if (userId == null) {
-            throw new ApiException(HttpStatus.NOT_FOUND, "USER_NOT_FOUND", "Usuario no encontrado");
-        }
-        return userId;
-    }
-
-    private Integer tryParseInteger(String value) {
-        try {
-            return Integer.parseInt(value);
-        } catch (NumberFormatException ex) {
-            return null;
-        }
+        return (userId != null && userId > 0) ? 1 : null;
     }
 
     private UUID tryParseUuid(String value) {

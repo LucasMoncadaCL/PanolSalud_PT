@@ -19,7 +19,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/api/locations")
+@RequestMapping("/internal/legacy/api/locations")
 public class LocationController {
 
     private final LocationService service;

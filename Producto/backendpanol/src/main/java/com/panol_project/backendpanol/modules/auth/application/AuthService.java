@@ -69,11 +69,11 @@ public class AuthService {
             OffsetDateTime blockedUntil = next >= maxFailedAttempts
                     ? OffsetDateTime.now().plusMinutes(lockMinutes)
                     : null;
-            userAuthRepository.registerFailedAttempt(user.id(), next, blockedUntil);
+            userAuthRepository.registerFailedAttempt(user.uuid(), next, blockedUntil);
             throw invalidCredentials(rut);
         }
 
-        userAuthRepository.resetLoginAttempts(user.id(), OffsetDateTime.now());
+        userAuthRepository.resetLoginAttempts(user.uuid(), OffsetDateTime.now());
         String normalizedRole = normalizeRole(user.roleName());
 
         Instant now = Instant.now();
@@ -85,8 +85,6 @@ public class AuthService {
                 .issuedAt(now)
                 .expiresAt(exp)
                 .subject(user.uuid().toString())
-                .claim("user_id", user.id())
-                .claim("user_uuid", user.uuid().toString())
                 .claim("role", normalizedRole)
                 .claim("jti", jti)
                 .build();
@@ -95,7 +93,7 @@ public class AuthService {
                 JwtEncoderParameters.from(JwsHeader.with(MacAlgorithm.HS256).build(), claims))
                 .getTokenValue();
 
-        auditLogService.log("user_logged_in", user.id(), user.id(), Map.of("rut", rut, "role", normalizedRole));
+        auditLogService.log("user_logged_in", user.uuid(), user.uuid(), Map.of("rut", rut, "role", normalizedRole));
         return new LoginResponse(token, normalizedRole, tokenExpirationSeconds);
     }
 
@@ -104,7 +102,6 @@ public class AuthService {
             return;
         }
         String jti = jwt.getId();
-        Number userId = jwt.getClaim("user_id");
         UUID userUuid = null;
         try {
             String subject = jwt.getSubject();
@@ -115,8 +112,8 @@ public class AuthService {
             // transitional token with legacy subject
         }
         OffsetDateTime expiresAt = OffsetDateTime.ofInstant(jwt.getExpiresAt(), ZoneOffset.UTC);
-        tokenRevocationRepository.revokeToken(jti, userId != null ? userId.intValue() : null, userUuid, expiresAt);
-        auditLogService.log("user_logged_out", userId != null ? userId.intValue() : null, null, Map.of("jti", jti));
+        tokenRevocationRepository.revokeToken(jti, userUuid, expiresAt);
+        auditLogService.log("user_logged_out", null, null, Map.of("jti", jti));
     }
 
     private ApiException invalidCredentials(String rut) {

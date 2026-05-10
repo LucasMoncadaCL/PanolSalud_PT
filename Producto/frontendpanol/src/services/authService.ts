@@ -15,14 +15,14 @@ export interface LoginResult {
 
 export async function login(payload: LoginPayload): Promise<LoginResult> {
   const { rememberMe = true, ...requestPayload } = payload;
-  const { data } = await apiClient.post<LoginResult>("/api/v1/auth/login", requestPayload);
+  const { data } = await apiClient.post<LoginResult>("/api/v2/auth/login", requestPayload);
   setAccessToken(data.accessToken, rememberMe);
   return data;
 }
 
 export async function logout(): Promise<void> {
   try {
-    await apiClient.post("/api/v1/auth/logout");
+    await apiClient.post("/api/v2/auth/logout");
   } finally {
     clearSession();
   }

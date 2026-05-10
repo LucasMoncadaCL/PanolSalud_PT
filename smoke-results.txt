@@ -1,0 +1,6 @@
+POST /api/v2/auth/login => 200
+{"accessToken":"eyJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJwYW5vbC1iYWNrZW5kLWRldiIsInN1YiI6IjBkMzA4YmMyLWZjZjAtNGViNC1iZmIzLTU5ZWZjYWEyOTY2YSIsInJvbGUiOiJESVJFQ1RPUiIsImV4cCI6MTc3ODQ1MDk1NiwiaWF0IjoxNzc4NDQ3MzU2LCJqdGkiOiIwY2Y2YWI1Ny01Y2I2LTQ4YjItOWU5MS05M2UwN2Q5ZDAzMDcifQ.QrErVuvvHv8DZjwOIWLrSSQTaZ4xykKzWPIf8TYJDcM","role":"DIRECTOR","expiresInSeconds":3600}
+GET http://localhost:18090/api/v2/categories/gestion sin token => 401
+GET http://localhost:18090/api/v2/locations/management sin token => 401
+GET http://localhost:18090/api/v2/implements sin token => 401
+GET http://localhost:18090/api/v2/implements/movements sin token => 401

@@ -12,7 +12,7 @@ import type { Categoria, CategoriaAssociationSummary } from "../types/category";
 
 interface CategoryHookState {
   categories: Categoria[];
-  associations: Record<number, CategoriaAssociationSummary>;
+  associations: Record<string, CategoriaAssociationSummary>;
   loading: boolean;
   saving: boolean;
   error: string | null;
@@ -36,8 +36,8 @@ export function useCategories() {
       const categories = await fetchCategoriasGestion();
       const associationEntries = await Promise.all(
         categories.map(async (category) => {
-          const summary = await fetchCategoriaAssociation(category.id);
-          return [category.id, summary] as const;
+          const summary = await fetchCategoriaAssociation(category.uuid);
+          return [category.uuid, summary] as const;
         }),
       );
 
@@ -83,11 +83,11 @@ export function useCategories() {
     return true;
   }, [load]);
 
-  const update = useCallback(async (id: number, nombre: string, descripcion: string) => {
+  const update = useCallback(async (categoryUuid: string, nombre: string, descripcion: string) => {
     setState((prev) => ({ ...prev, saving: true, fieldError: null, error: null }));
 
     try {
-      await updateCategoria(id, { nombre, descripcion: descripcion.trim() || null });
+      await updateCategoria(categoryUuid, { nombre, descripcion: descripcion.trim() || null });
       await load();
     } catch (error) {
       const apiError = getApiErrorPayload(error);
@@ -108,11 +108,11 @@ export function useCategories() {
     return true;
   }, [load]);
 
-  const deactivate = useCallback(async (id: number, force = false) => {
+  const deactivate = useCallback(async (categoryUuid: string, force = false) => {
     setState((prev) => ({ ...prev, saving: true, error: null }));
 
     try {
-      await deactivateCategoria(id, force);
+      await deactivateCategoria(categoryUuid, force);
       await load();
       setState((prev) => ({ ...prev, saving: false }));
       return { ok: true, forceRequired: false, message: null };
@@ -133,11 +133,11 @@ export function useCategories() {
     }
   }, [load]);
 
-  const remove = useCallback(async (id: number) => {
+  const remove = useCallback(async (categoryUuid: string) => {
     setState((prev) => ({ ...prev, saving: true, error: null }));
 
     try {
-      await deleteCategoria(id);
+      await deleteCategoria(categoryUuid);
       await load();
       setState((prev) => ({ ...prev, saving: false }));
       return true;

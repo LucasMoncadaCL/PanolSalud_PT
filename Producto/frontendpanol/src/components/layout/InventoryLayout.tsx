@@ -142,6 +142,14 @@ export function TopBar({
   const [suggestionsOpen, setSuggestionsOpen] = useState(false);
   const [hoverIndex, setHoverIndex] = useState<number>(-1);
   const searchRef = useRef<HTMLDivElement | null>(null);
+  const safeUserName = typeof userName === "string" && userName.trim().length > 0 ? userName : "Usuario";
+  const userInitials = safeUserName
+    .split(" ")
+    .map((part) => part?.[0] ?? "")
+    .filter(Boolean)
+    .slice(0, 2)
+    .join("")
+    .toUpperCase();
 
   useEffect(() => {
     const timeout = window.setTimeout(() => setDebouncedSearch(search.trim()), 250);
@@ -195,7 +203,7 @@ export function TopBar({
   );
 
   function goToImplement(row: ImplementSummary) {
-    window.location.hash = `#/inventory/implementos/${row.id}`;
+    window.location.hash = `#/inventory/implementos/${row.uuid}`;
     setSuggestionsOpen(false);
     setSearch("");
     setHoverIndex(-1);
@@ -249,7 +257,7 @@ export function TopBar({
         {shouldShowSuggestions ? (
           <div className="topbar-search-suggest">
             {loadingSuggestions ? <div className="topbar-search-suggest__hint">Buscando implementos...</div> : suggestions.length === 0 ? <div className="topbar-search-suggest__hint">Sin coincidencias</div> : suggestions.map((row, index) => (
-              <button key={row.id} type="button" className={`topbar-search-item ${index === hoverIndex ? "is-hover" : ""}`} onMouseEnter={() => setHoverIndex(index)} onClick={() => goToImplement(row)}>
+              <button key={row.uuid} type="button" className={`topbar-search-item ${index === hoverIndex ? "is-hover" : ""}`} onMouseEnter={() => setHoverIndex(index)} onClick={() => goToImplement(row)}>
                 <img src={(row.imgUrl ?? (row as any).img_url) ?? "https://placehold.co/48x48/e9edf5/4d6284?text=Sin+img"} alt={row.name} className="topbar-search-item__thumb" />
                 <span className="topbar-search-item__name">{row.name}</span>
               </button>
@@ -263,9 +271,9 @@ export function TopBar({
           <Bell size={18} />
           {notificationCount > 0 ? <span className="topbar__notify-badge">{notificationCount}</span> : null}
         </button>
-        <div className="topbar__avatar">{userName.split(" ").map(x => x[0]).slice(0, 2).join("")}</div>
+        <div className="topbar__avatar">{userInitials || "US"}</div>
         <div>
-          <strong>{userName}</strong>
+          <strong>{safeUserName}</strong>
           <p>{userRole}</p>
         </div>
         <button type="button" className="button button--ghost" onClick={onLogout}><LogOut size={16} /> Salir</button>

@@ -6,34 +6,34 @@ import type {
   StockMovementPayload,
 } from "../types/stock";
 
-export async function fetchImplementStock(implementId: number): Promise<StockDetail> {
-  const response = await apiClient.get<StockDetail>(`/api/implements/${implementId}/stock`);
+export async function fetchImplementStock(implementUuid: string): Promise<StockDetail> {
+  const response = await apiClient.get<StockDetail>(`/api/v2/implements/${implementUuid}/stock`);
   return response.data;
 }
 
 export async function addStockEntry(
-  implementId: number,
+  implementUuid: string,
   payload: StockEntryPayload,
 ): Promise<StockDetail> {
-  const response = await apiClient.post<StockDetail>(`/api/implements/${implementId}/stock/entries`, payload);
+  const response = await apiClient.post<StockDetail>(`/api/v2/implements/${implementUuid}/stock/entries`, payload);
   return response.data;
 }
 
 export async function applyStockMovement(
-  implementId: number,
+  implementUuid: string,
   payload: StockMovementPayload,
 ): Promise<StockDetail> {
-  const response = await apiClient.post<StockDetail>(`/api/implements/${implementId}/stock/movements`, payload);
+  const response = await apiClient.post<StockDetail>(`/api/v2/implements/${implementUuid}/stock/movements`, payload);
   return response.data;
 }
 
 export async function updateIndividualState(
-  implementId: number,
-  individualId: number,
+  implementUuid: string,
+  individualUuid: string,
   payload: IndividualUpdatePayload,
 ): Promise<StockDetail> {
   const response = await apiClient.put<StockDetail>(
-    `/api/implements/${implementId}/stock/individuals/${individualId}`,
+    `/api/v2/implements/${implementUuid}/stock/individuals/${individualUuid}`,
     payload,
   );
   return response.data;

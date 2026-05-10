@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   AlertTriangle,
   ArrowLeft,
@@ -146,10 +146,10 @@ type AdjustIncreaseMode = "batch" | "single";
 type AdjustStep = 1 | 2;
 
 export function InventoryItemDetailPage({
-  implementId,
+  implementUuid,
   embedded = false,
 }: {
-  implementId: number;
+  implementUuid: string;
   embedded?: boolean;
 }) {
   const [implement, setImplement] = useState<ImplementDetail | null>(null);
@@ -179,12 +179,12 @@ export function InventoryItemDetailPage({
   const [adjustCondition, setAdjustCondition] = useState<IndividualItem["condition"]>("good");
   const [adjustNotes, setAdjustNotes] = useState("");
   const [adjustSingleAssetCode, setAdjustSingleAssetCode] = useState("");
-  const [adjustReduceIndividualIds, setAdjustReduceIndividualIds] = useState<number[]>([]);
+  const [adjustReduceIndividualIds, setAdjustReduceIndividualIds] = useState<string[]>([]);
   const [adjustReduceQuantity, setAdjustReduceQuantity] = useState("1");
 
   const [movementType, setMovementType] = useState<StockMovementType>("reserve");
   const [movementQuantity, setMovementQuantity] = useState("1");
-  const [movementSelectedIndividualIds, setMovementSelectedIndividualIds] = useState<number[]>([]);
+  const [movementSelectedIndividualIds, setMovementSelectedIndividualIds] = useState<string[]>([]);
   const [movementNotes, setMovementNotes] = useState("");
   const [stockBusy, setStockBusy] = useState(false);
   const [editingIndividual, setEditingIndividual] = useState<IndividualItem | null>(null);
@@ -195,7 +195,7 @@ export function InventoryItemDetailPage({
 
   const [isLabelModalOpen, setIsLabelModalOpen] = useState(false);
   const [labelScope, setLabelScope] = useState<LabelScope>("GENERAL");
-  const [labelIndividualId, setLabelIndividualId] = useState<number | null>(null);
+  const [labelIndividualUuid, setLabelIndividualUuid] = useState<string | null>(null);
   const [labelPreviewUrl, setLabelPreviewUrl] = useState<string | null>(null);
   const [labelBusy, setLabelBusy] = useState(false);
 
@@ -221,22 +221,22 @@ export function InventoryItemDetailPage({
     setSuccess(null);
     setUserRole(getUserRoleFromToken());
 
-    fetchImplementById(implementId)
+    fetchImplementById(implementUuid)
       .then((detail) => {
         setImplement(detail);
       })
       .catch((requestError) => setError(getErrorMessage(requestError, "No se pudo cargar la ficha del producto.")))
       .finally(() => setLoading(false));
-  }, [implementId]);
+  }, [implementUuid]);
 
   useEffect(() => {
     setStockLoading(true);
     setStockError(null);
-    fetchImplementStock(implementId)
+    fetchImplementStock(implementUuid)
       .then(setStockDetail)
       .catch((requestError) => setStockError(getErrorMessage(requestError, "No se pudo cargar el stock.")))
       .finally(() => setStockLoading(false));
-  }, [implementId]);
+  }, [implementUuid]);
 
   useEffect(() => {
     fetchLocations()
@@ -246,12 +246,12 @@ export function InventoryItemDetailPage({
   }, []);
 
   async function refreshStock() {
-    const detail = await fetchImplementStock(implementId);
+    const detail = await fetchImplementStock(implementUuid);
     setStockDetail(detail);
   }
 
   async function refreshImplement() {
-    const detail = await fetchImplementById(implementId);
+    const detail = await fetchImplementById(implementUuid);
     setImplement(detail);
   }
 
@@ -315,12 +315,12 @@ export function InventoryItemDetailPage({
     }
 
     const stamp = Date.now();
-    return Array.from({ length: quantity }).map((_, idx) => `IMP-${implementId}-${stamp}-${idx + 1}`);
+    return Array.from({ length: quantity }).map((_, idx) => `IMP-${implementUuid.slice(0, 8)}-${stamp}-${idx + 1}`);
   }
 
   async function registerInventoryTrace(action: "INGRESO" | "AJUSTE", quantity: number, notes: string) {
     try {
-      await registerManualMovement(implementId, {
+      await registerManualMovement(implementUuid, {
         action,
         quantity,
         notes: notes.trim() ? notes.trim() : null,
@@ -356,7 +356,7 @@ export function InventoryItemDetailPage({
             return;
           }
 
-          let nextDetail = await addStockEntry(implementId, {
+          let nextDetail = await addStockEntry(implementUuid, {
             quantity,
             asset_codes: assetCodes,
           });
@@ -366,7 +366,7 @@ export function InventoryItemDetailPage({
               assetCodes.includes(row.asset_code),
             );
             for (const row of created) {
-              nextDetail = await updateIndividualState(implementId, row.id, {
+              nextDetail = await updateIndividualState(implementUuid, row.uuid, {
                 status: adjustStatus,
                 condition: adjustCondition,
               });
@@ -382,7 +382,7 @@ export function InventoryItemDetailPage({
             setStockBusy(false);
             return;
           }
-          setStockDetail(await addStockEntry(implementId, { quantity }));
+          setStockDetail(await addStockEntry(implementUuid, { quantity }));
           await registerInventoryTrace("INGRESO", quantity, adjustNotes);
         }
       } else {
@@ -393,9 +393,9 @@ export function InventoryItemDetailPage({
             return;
           }
           setStockDetail(
-            await applyStockMovement(implementId, {
+            await applyStockMovement(implementUuid, {
               movement_type: "decrease_available",
-              individual_ids: adjustReduceIndividualIds,
+              individual_uuids: adjustReduceIndividualIds,
               condition: adjustCondition,
             }),
           );
@@ -408,7 +408,7 @@ export function InventoryItemDetailPage({
             return;
           }
           setStockDetail(
-            await applyStockMovement(implementId, {
+            await applyStockMovement(implementUuid, {
               movement_type: "decrease_available",
               quantity,
             }),
@@ -446,13 +446,13 @@ export function InventoryItemDetailPage({
       const payload: any = { movement_type: movementType };
       let qtyForTrace = 0;
       if (implement?.item_type === "individual") {
-        payload.individual_ids = movementSelectedIndividualIds;
+        payload.individual_uuids = movementSelectedIndividualIds;
         qtyForTrace = movementSelectedIndividualIds.length;
       } else {
         payload.quantity = Number(movementQuantity);
         qtyForTrace = Number(movementQuantity);
       }
-      setStockDetail(await applyStockMovement(implementId, payload));
+      setStockDetail(await applyStockMovement(implementUuid, payload));
       await registerInventoryTrace("AJUSTE", qtyForTrace, movementNotes);
       await refreshDetailData();
       setSuccess("Movimiento interno aplicado.");
@@ -466,16 +466,16 @@ export function InventoryItemDetailPage({
     }
   }
 
-  function toggleMovementIndividual(individualId: number) {
+  function toggleMovementIndividual(individualUuid: string) {
     setMovementSelectedIndividualIds((prev) =>
-      prev.includes(individualId) ? prev.filter((id) => id !== individualId) : [...prev, individualId],
+      prev.includes(individualUuid) ? prev.filter((id) => id !== individualUuid) : [...prev, individualUuid],
     );
   }
 
   async function handleMarkIndividualAvailable(individual: IndividualItem) {
     setStockBusy(true);
     try {
-      setStockDetail(await updateIndividualState(implementId, individual.id, { status: "available", condition: "good" }));
+      setStockDetail(await updateIndividualState(implementUuid, individual.uuid, { status: "available", condition: "good" }));
       setSuccess(`Individual ${individual.asset_code} actualizado.`);
     } catch (requestError) {
       setStockError(getErrorMessage(requestError, "No se pudo actualizar el individual."));
@@ -488,7 +488,7 @@ export function InventoryItemDetailPage({
     setEditingIndividual(individual);
     setIndividualStatus(individual.status);
     setIndividualCondition(individual.condition);
-    setIndividualLocationId(individual.current_location_id == null ? "" : String(individual.current_location_id));
+    setIndividualLocationId(individual.current_location_uuid == null ? "" : String(individual.current_location_uuid));
     setIndividualActive(individual.active);
   }
 
@@ -504,10 +504,10 @@ export function InventoryItemDetailPage({
       const payload = {
         status: individualStatus,
         condition: individualCondition,
-        current_location_id: individualLocationId.trim() ? Number(individualLocationId) : null,
+        current_location_uuid: individualLocationId.trim() ? individualLocationId : null,
         active: individualActive,
       };
-      setStockDetail(await updateIndividualState(implementId, editingIndividual.id, payload));
+      setStockDetail(await updateIndividualState(implementUuid, editingIndividual.uuid, payload));
       setSuccess(`Unidad ${editingIndividual.asset_code} actualizada.`);
       closeIndividualEditor();
     } catch (requestError) {
@@ -517,20 +517,20 @@ export function InventoryItemDetailPage({
     }
   }
 
-  function openLabelsModal(scope: LabelScope, individualId: number | null = null) {
+  function openLabelsModal(scope: LabelScope, individualUuid: string | null = null) {
     setLabelScope(scope);
-    setLabelIndividualId(individualId);
+    setLabelIndividualUuid(individualUuid);
     setLabelPreviewUrl(null);
     setIsLabelModalOpen(true);
-    void handleGenerateLabelsPdf(scope, individualId);
+    void handleGenerateLabelsPdf(scope, individualUuid);
   }
 
-  async function handleGenerateLabelsPdf(scopeArg: LabelScope, individualIdArg: number | null) {
+  async function handleGenerateLabelsPdf(scopeArg: LabelScope, individualUuidArg: string | null) {
     if (!implement) return;
     setLabelBusy(true);
     setStockError(null);
     try {
-      const blob = await fetchLabelsPdfBlob(implement.id, scopeArg, 1, individualIdArg == null ? undefined : individualIdArg);
+      const blob = await fetchLabelsPdfBlob(implement.uuid, scopeArg, 1, individualUuidArg == null ? undefined : individualUuidArg);
       if (labelPreviewUrl) {
         window.URL.revokeObjectURL(labelPreviewUrl);
       }
@@ -548,7 +548,7 @@ export function InventoryItemDetailPage({
       window.URL.revokeObjectURL(labelPreviewUrl);
     }
     setLabelPreviewUrl(null);
-    setLabelIndividualId(null);
+    setLabelIndividualUuid(null);
   }
 
   function printLabelPreview() {
@@ -689,8 +689,8 @@ export function InventoryItemDetailPage({
                       </thead>
                       <tbody>
                         {(stockDetail?.individuals ?? []).map((individual: IndividualItem) => (
-                          <tr key={individual.id}>
-                            <td>{individual.id}</td>
+                          <tr key={individual.uuid}>
+                            <td>{individual.uuid}</td>
                             <td>{individual.asset_code}</td>
                             <td>
                               <span className={`badge ${individual.status === "available" ? "badge--active" : individual.status === "blocked" ? "badge--danger" : "badge--inactive"}`}>
@@ -698,11 +698,11 @@ export function InventoryItemDetailPage({
                               </span>
                             </td>
                             <td><span className="badge badge--active">{conditionLabel(individual.condition)}</span></td>
-                            <td>{individual.current_location_id ?? "-"}</td>
+                            <td>{individual.current_location_uuid ?? "-"}</td>
                             <td className="table-actions">
                               <button type="button" className="button button--table button--ghost" disabled={stockBusy} onClick={() => openIndividualEditor(individual)}><Edit3 size={14} />Editar</button>
                               <button type="button" className="button button--table button--ghost" disabled={stockBusy || individual.status === "available"} onClick={() => handleMarkIndividualAvailable(individual)}><CircleCheck size={14} />Marcar disponible</button>
-                              <button type="button" className="button button--table button--ghost" disabled={stockBusy} onClick={() => openLabelsModal("INDIVIDUAL", individual.id)}><Barcode size={14} />Código de barras</button>
+                              <button type="button" className="button button--table button--ghost" disabled={stockBusy} onClick={() => openLabelsModal("INDIVIDUAL", individual.uuid)}><Barcode size={14} />Código de barras</button>
                             </td>
                           </tr>
                         ))}
@@ -761,7 +761,7 @@ export function InventoryItemDetailPage({
       </section>
 
       <ImplementEditModal
-        implementId={implementId}
+        implementUuid={implementUuid}
         isOpen={isEditing}
         onClose={() => setIsEditing(false)}
         onSaved={async (updated) => {
@@ -932,21 +932,21 @@ export function InventoryItemDetailPage({
                             </thead>
                             <tbody>
                               {(stockDetail?.individuals ?? []).map((individual: IndividualItem) => (
-                                <tr key={`reduce-${individual.id}`}>
+                                <tr key={`reduce-${individual.uuid}`}>
                                   <td>
                                     <input
                                       type="checkbox"
-                                      checked={adjustReduceIndividualIds.includes(individual.id)}
+                                      checked={adjustReduceIndividualIds.includes(individual.uuid)}
                                       onChange={() =>
                                         setAdjustReduceIndividualIds((prev) =>
-                                          prev.includes(individual.id)
-                                            ? prev.filter((id) => id !== individual.id)
-                                            : [...prev, individual.id],
+                                          prev.includes(individual.uuid)
+                                            ? prev.filter((id) => id !== individual.uuid)
+                                            : [...prev, individual.uuid],
                                         )
                                       }
                                     />
                                   </td>
-                                  <td>{individual.id}</td>
+                                  <td>{individual.uuid}</td>
                                   <td>{individual.asset_code}</td>
                                   <td>{statusLabel(individual.status)}</td>
                                 </tr>
@@ -1058,15 +1058,15 @@ export function InventoryItemDetailPage({
                     </thead>
                     <tbody>
                       {(stockDetail?.individuals ?? []).map((individual: IndividualItem) => (
-                        <tr key={`move-${individual.id}`}>
+                        <tr key={`move-${individual.uuid}`}>
                           <td>
                             <input
                               type="checkbox"
-                              checked={movementSelectedIndividualIds.includes(individual.id)}
-                              onChange={() => toggleMovementIndividual(individual.id)}
+                              checked={movementSelectedIndividualIds.includes(individual.uuid)}
+                              onChange={() => toggleMovementIndividual(individual.uuid)}
                             />
                           </td>
-                          <td>{individual.id}</td>
+                          <td>{individual.uuid}</td>
                           <td>{individual.asset_code}</td>
                           <td>{statusLabel(individual.status)}</td>
                         </tr>
@@ -1129,7 +1129,7 @@ export function InventoryItemDetailPage({
             <label htmlFor="individual-location">Ubicación actual</label>
             <select id="individual-location" value={individualLocationId} onChange={(e) => setIndividualLocationId(e.target.value)}>
               <option value="">Sin ubicación</option>
-              {locations.map((location) => (<option key={location.id} value={String(location.id)}>{location.name}</option>))}
+              {locations.map((location) => (<option key={location.uuid} value={location.uuid}>{location.name}</option>))}
             </select>
 
             <label htmlFor="individual-active">Activo</label>
@@ -1150,7 +1150,7 @@ export function InventoryItemDetailPage({
         <div className="modal-overlay" role="dialog" aria-modal="true">
           <div className="modal" style={{ width: "min(100%, 820px)" }}>
             <h3>Vista previa código de barras</h3>
-            <p>{labelScope === "INDIVIDUAL" ? `Unidad individual #${labelIndividualId ?? "-"}` : "Código general del implemento"}</p>
+            <p>{labelScope === "INDIVIDUAL" ? `Unidad individual #${labelIndividualUuid ?? "-"}` : "Código general del implemento"}</p>
             <div className="barcode-preview-surface">
               {labelBusy ? (
                 <div className="field-hint" style={{ padding: 12 }}>Cargando vista previa...</div>
@@ -1161,27 +1161,27 @@ export function InventoryItemDetailPage({
                   <svg
                     viewBox={`0 0 ${buildPseudoBarcodeBars(
                       labelScope === "INDIVIDUAL"
-                        ? ((stockDetail?.individuals ?? []).find((row: IndividualItem) => row.id === labelIndividualId)?.asset_code ??
-                          `IND-${labelIndividualId ?? ""}`)
-                        : (implement.barcode ?? `IMP-${implement.id}`)
+                        ? ((stockDetail?.individuals ?? []).find((row: IndividualItem) => row.uuid === labelIndividualUuid)?.asset_code ??
+                          `IND-${labelIndividualUuid ?? ""}`)
+                        : (implement.barcode ?? `IMP-${implement.uuid}`)
                     ).width} 36`}
                     preserveAspectRatio="none"
                     className="barcode-preview-svg"
                   >
                     {buildPseudoBarcodeBars(
                       labelScope === "INDIVIDUAL"
-                        ? ((stockDetail?.individuals ?? []).find((row: IndividualItem) => row.id === labelIndividualId)?.asset_code ??
-                          `IND-${labelIndividualId ?? ""}`)
-                        : (implement.barcode ?? `IMP-${implement.id}`)
+                        ? ((stockDetail?.individuals ?? []).find((row: IndividualItem) => row.uuid === labelIndividualUuid)?.asset_code ??
+                          `IND-${labelIndividualUuid ?? ""}`)
+                        : (implement.barcode ?? `IMP-${implement.uuid}`)
                     ).bars.map((bar, idx) => (
                       <rect key={`bar-${idx}`} x={bar.x} y={2} width={bar.w} height={30} fill="#1b1b1b" />
                     ))}
                   </svg>
                   <span className="barcode-preview-code">
                     {labelScope === "INDIVIDUAL"
-                      ? ((stockDetail?.individuals ?? []).find((row: IndividualItem) => row.id === labelIndividualId)?.asset_code ??
-                        `IND-${labelIndividualId ?? ""}`)
-                      : (implement.barcode ?? `IMP-${implement.id}`)}
+                      ? ((stockDetail?.individuals ?? []).find((row: IndividualItem) => row.uuid === labelIndividualUuid)?.asset_code ??
+                        `IND-${labelIndividualUuid ?? ""}`)
+                      : (implement.barcode ?? `IMP-${implement.uuid}`)}
                   </span>
                 </div>
               )}
@@ -1203,5 +1203,7 @@ export function InventoryItemDetailPage({
 
   return <InventoryLayout activeSection="items">{content}</InventoryLayout>;
 }
+
+
 
 

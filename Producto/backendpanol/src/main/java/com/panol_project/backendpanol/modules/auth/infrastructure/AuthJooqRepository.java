@@ -28,7 +28,6 @@ public class AuthJooqRepository implements UserAuthRepository, TokenRevocationRe
                 String.class,
                 field(name("user", "rut")));
         return dsl.select(
-                        field(name("user", "id"), Integer.class),
                         field(name("user", "uuid"), UUID.class),
                         field(name("user", "rut"), String.class),
                         field(name("user", "password_hash"), String.class),
@@ -36,7 +35,7 @@ public class AuthJooqRepository implements UserAuthRepository, TokenRevocationRe
                         field(name("user", "failed_login_attempts"), Integer.class),
                         field(name("user", "blocked_until"), OffsetDateTime.class))
                 .from(userTable)
-                .join(roleTable).on(field(name("role", "id")).eq(field(name("user", "role_id"))))
+                .join(roleTable).on(field(name("role", "uuid")).eq(field(name("user", "role_uuid"))))
                 .where(normalizedRutField.eq(rut))
                 .and(field(name("user", "active")).eq(true))
                 .fetchOptional(record -> new AuthUserRow(
@@ -44,40 +43,38 @@ public class AuthJooqRepository implements UserAuthRepository, TokenRevocationRe
                         record.value2(),
                         record.value3(),
                         record.value4(),
-                        record.value5(),
-                        record.value6() == null ? 0 : record.value6(),
-                        record.value7()
+                        record.value5() == null ? 0 : record.value5(),
+                        record.value6()
                 ));
     }
 
     @Override
-    public void registerFailedAttempt(Integer userId, int attempts, OffsetDateTime blockedUntil) {
+    public void registerFailedAttempt(UUID userUuid, int attempts, OffsetDateTime blockedUntil) {
         dsl.update(table(name("user")))
                 .set(field(name("failed_login_attempts")), attempts)
                 .set(field(name("blocked_until")), blockedUntil)
-                .where(field(name("id")).eq(userId))
+                .where(field(name("uuid")).eq(userUuid))
                 .execute();
     }
 
     @Override
-    public void resetLoginAttempts(Integer userId, OffsetDateTime lastLoginAt) {
+    public void resetLoginAttempts(UUID userUuid, OffsetDateTime lastLoginAt) {
         dsl.update(table(name("user")))
                 .set(field(name("failed_login_attempts")), 0)
                 .set(field(name("blocked_until")), (OffsetDateTime) null)
                 .set(field(name("last_login_at")), lastLoginAt)
-                .where(field(name("id")).eq(userId))
+                .where(field(name("uuid")).eq(userUuid))
                 .execute();
     }
 
     @Override
-    public void revokeToken(String jti, Integer userId, UUID userUuid, OffsetDateTime expiresAt) {
+    public void revokeToken(String jti, UUID userUuid, OffsetDateTime expiresAt) {
         dsl.insertInto(table(name("token_revocation")))
                 .columns(
                         field(name("jti")),
-                        field(name("user_id")),
                         field(name("user_uuid")),
                         field(name("expires_at")))
-                .values(jti, userId, userUuid, expiresAt)
+                .values(jti, userUuid, expiresAt)
                 .onConflict(field(name("jti")))
                 .doNothing()
                 .execute();

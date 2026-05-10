@@ -23,7 +23,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/api/v1/users")
+@RequestMapping("/internal/legacy/api/v1/users")
 public class UserAdminController {
 
     private final UserAdminService userAdminService;

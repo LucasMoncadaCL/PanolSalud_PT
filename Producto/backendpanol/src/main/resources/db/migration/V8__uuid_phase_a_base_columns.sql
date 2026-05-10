@@ -15,7 +15,7 @@ BEGIN
         EXECUTE format('ALTER TABLE public.%I ALTER COLUMN uuid SET DEFAULT gen_random_uuid()', rec.table_name);
         EXECUTE format('UPDATE public.%I SET uuid = gen_random_uuid() WHERE uuid IS NULL', rec.table_name);
         EXECUTE format('ALTER TABLE public.%I ALTER COLUMN uuid SET NOT NULL', rec.table_name);
-        EXECUTE format('CREATE UNIQUE INDEX IF NOT EXISTS ux_%I_uuid ON public.%I (uuid)', rec.table_name, rec.table_name);
+        EXECUTE format('CREATE UNIQUE INDEX IF NOT EXISTS %I ON public.%I (uuid)', 'ux_' || rec.table_name || '_uuid', rec.table_name);
     END LOOP;
 END
 $$;

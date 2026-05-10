@@ -80,7 +80,7 @@ public class GlobalExceptionHandler {
         };
     }
 
-    private void logStructured(String event, HttpServletRequest request, int code, String codeText, String errorType, String cause, Integer userId, Throwable ex) {
+    private void logStructured(String event, HttpServletRequest request, int code, String codeText, String errorType, String cause, String userUuid, Throwable ex) {
         String endpointTag = endpointTag(request.getRequestURI());
         Map<String, Object> payload = Map.of(
                 "event", event,
@@ -88,7 +88,7 @@ public class GlobalExceptionHandler {
                 "endpoint_tag", endpointTag,
                 "code", code,
                 "error_type", errorType,
-                "user_id", userId == null ? "Ninguno" : userId,
+                "user_uuid", userUuid == null ? "Ninguno" : userUuid,
                 "path", request.getRequestURI(),
                 "cause", cause == null ? "N/A" : cause);
 

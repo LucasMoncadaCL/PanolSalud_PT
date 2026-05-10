@@ -20,7 +20,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/api/implements/{implementId}/stock")
+@RequestMapping("/internal/legacy/api/implements/{implementId}/stock")
 public class StockController {
 
     private final StockService service;

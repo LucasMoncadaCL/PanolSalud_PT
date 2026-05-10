@@ -29,7 +29,7 @@ public class RestAccessDeniedHandler implements AccessDeniedHandler {
         response.setStatus(HttpServletResponse.SC_FORBIDDEN);
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
 
-        LOG.warn("{\"event\":\"client_error_handled\",\"timestamp\":\"{}\",\"endpoint_tag\":\"auth\",\"code\":403,\"error_type\":\"{}\",\"user_id\":\"Ninguno\",\"path\":\"{}\",\"cause\":\"{}\"}",
+        LOG.warn("{\"event\":\"client_error_handled\",\"timestamp\":\"{}\",\"endpoint_tag\":\"auth\",\"code\":403,\"error_type\":\"{}\",\"user_uuid\":\"Ninguno\",\"path\":\"{}\",\"cause\":\"{}\"}",
                 OffsetDateTime.now(), accessDeniedException.getClass().getSimpleName(), request.getRequestURI(), accessDeniedException.getMessage());
 
         ErrorResponse payload = new ErrorResponse("403", "Acceso denegado", OffsetDateTime.now());

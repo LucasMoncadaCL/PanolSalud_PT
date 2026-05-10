@@ -10,9 +10,9 @@ type ItemType = "consumable" | "reusable" | "individual";
 
 interface CreateImplementFormPayload {
   name: string;
-  categoryId: number;
+  categoryUuid: string;
   itemType: ItemType;
-  locationId: number;
+  locationUuid: string;
   description: string | null;
   barcode: string | null;
   imgUrl: string | null;
@@ -29,9 +29,9 @@ interface ImplementFormModalProps {
 
 interface FieldErrors {
   name?: string;
-  categoryId?: string;
+  categoryUuid?: string;
   itemType?: string;
-  locationId?: string;
+  locationUuid?: string;
   minStock?: string;
   description?: string;
   barcode?: string;
@@ -48,9 +48,9 @@ const ITEM_TYPE_OPTIONS: Array<{ value: ItemType; label: string }> = [
 
 export function ImplementFormModal({ isOpen, saving, onClose, onSubmit }: ImplementFormModalProps) {
   const [name, setName] = useState("");
-  const [categoryIdRaw, setCategoryIdRaw] = useState("");
+  const [categoryUuidRaw, setCategoryUuidRaw] = useState("");
   const [itemTypeRaw, setItemTypeRaw] = useState<ItemType | "">("");
-  const [locationIdRaw, setLocationIdRaw] = useState("");
+  const [locationUuidRaw, setLocationUuidRaw] = useState("");
   const [description, setDescription] = useState("");
   const [barcode, setBarcode] = useState("");
   const [imgUrl, setImgUrl] = useState("");
@@ -72,9 +72,9 @@ export function ImplementFormModal({ isOpen, saving, onClose, onSubmit }: Implem
     }
 
     setName("");
-    setCategoryIdRaw("");
+    setCategoryUuidRaw("");
     setItemTypeRaw("");
-    setLocationIdRaw("");
+    setLocationUuidRaw("");
     setDescription("");
     setBarcode("");
     setImgUrl("");
@@ -130,8 +130,8 @@ export function ImplementFormModal({ isOpen, saving, onClose, onSubmit }: Implem
 
   function validateClientSide(): FieldErrors {
     const errors: FieldErrors = {};
-    const categoryId = categoryIdRaw.trim() ? Number(categoryIdRaw) : NaN;
-    const locationId = locationIdRaw.trim() ? Number(locationIdRaw) : NaN;
+    const categoryUuid = categoryUuidRaw.trim();
+    const locationUuid = locationUuidRaw.trim();
     const minStock = minStockRaw.trim() ? Number(minStockRaw) : NaN;
 
     if (name.trim().length === 0) {
@@ -140,14 +140,14 @@ export function ImplementFormModal({ isOpen, saving, onClose, onSubmit }: Implem
     if (name.trim().length > 150) {
       errors.name = "El nombre no puede superar 150 caracteres.";
     }
-    if (!Number.isFinite(categoryId)) {
-      errors.categoryId = "La categoria es obligatoria.";
+    if (!categoryUuid) {
+      errors.categoryUuid = "La categoria es obligatoria.";
     }
     if (itemTypeRaw.trim().length === 0) {
       errors.itemType = "El tipo de implemento es obligatorio.";
     }
-    if (!Number.isFinite(locationId)) {
-      errors.locationId = "La ubicacion es obligatoria.";
+    if (!locationUuid) {
+      errors.locationUuid = "La ubicacion es obligatoria.";
     }
     if (!Number.isFinite(minStock) || minStock <= 0 || !Number.isInteger(minStock)) {
       errors.minStock = "El stock minimo debe ser un entero positivo.";
@@ -174,7 +174,7 @@ export function ImplementFormModal({ isOpen, saving, onClose, onSubmit }: Implem
       return errors;
     }
     if (normalized.includes("categoria")) {
-      errors.categoryId = message;
+      errors.categoryUuid = message;
       return errors;
     }
     if (normalized.includes("tipo")) {
@@ -182,7 +182,7 @@ export function ImplementFormModal({ isOpen, saving, onClose, onSubmit }: Implem
       return errors;
     }
     if (normalized.includes("ubicacion")) {
-      errors.locationId = message;
+      errors.locationUuid = message;
       return errors;
     }
     if (normalized.includes("stock minimo")) {
@@ -220,16 +220,16 @@ export function ImplementFormModal({ isOpen, saving, onClose, onSubmit }: Implem
       return;
     }
 
-    const categoryId = Number(categoryIdRaw);
-    const locationId = Number(locationIdRaw);
+    const categoryUuid = categoryUuidRaw.trim();
+    const locationUuid = locationUuidRaw.trim();
     const minStock = Number(minStockRaw);
 
     try {
       await onSubmit({
         name: name.trim(),
-        categoryId,
+        categoryUuid,
         itemType: itemTypeRaw as ItemType,
-        locationId,
+        locationUuid,
         description: description.trim() ? description.trim() : null,
         barcode: barcode.trim() ? barcode.trim() : null,
         imgUrl: imgUrl.trim() ? imgUrl.trim() : null,
@@ -268,10 +268,10 @@ export function ImplementFormModal({ isOpen, saving, onClose, onSubmit }: Implem
           <label htmlFor="implement-category">Categoria</label>
           <select
             id="implement-category"
-            value={categoryIdRaw}
+            value={categoryUuidRaw}
             onChange={(event) => {
-              setCategoryIdRaw(event.target.value);
-              setFieldErrors((current) => ({ ...current, categoryId: undefined }));
+              setCategoryUuidRaw(event.target.value);
+              setFieldErrors((current) => ({ ...current, categoryUuid: undefined }));
             }}
             disabled={isCategoryDisabled}
           >
@@ -279,13 +279,13 @@ export function ImplementFormModal({ isOpen, saving, onClose, onSubmit }: Implem
               Selecciona una categoria
             </option>
             {categories.map((category) => (
-              <option key={category.id} value={String(category.id)}>
+              <option key={category.uuid} value={category.uuid}>
                 {category.name}
               </option>
             ))}
           </select>
           {categoriesError ? <p className="field-error">{categoriesError}</p> : null}
-          {fieldErrors.categoryId ? <p className="field-error">{fieldErrors.categoryId}</p> : null}
+          {fieldErrors.categoryUuid ? <p className="field-error">{fieldErrors.categoryUuid}</p> : null}
 
           <label htmlFor="implement-item-type">Tipo de implemento</label>
           <select
@@ -310,10 +310,10 @@ export function ImplementFormModal({ isOpen, saving, onClose, onSubmit }: Implem
           <label htmlFor="implement-location">Ubicacion</label>
           <select
             id="implement-location"
-            value={locationIdRaw}
+            value={locationUuidRaw}
             onChange={(event) => {
-              setLocationIdRaw(event.target.value);
-              setFieldErrors((current) => ({ ...current, locationId: undefined }));
+              setLocationUuidRaw(event.target.value);
+              setFieldErrors((current) => ({ ...current, locationUuid: undefined }));
             }}
             disabled={isLocationDisabled}
           >
@@ -321,13 +321,13 @@ export function ImplementFormModal({ isOpen, saving, onClose, onSubmit }: Implem
               Selecciona una ubicacion
             </option>
             {locations.map((location) => (
-              <option key={location.id} value={String(location.id)}>
+              <option key={location.uuid} value={location.uuid}>
                 {location.name}
               </option>
             ))}
           </select>
           {locationsError ? <p className="field-error">{locationsError}</p> : null}
-          {fieldErrors.locationId ? <p className="field-error">{fieldErrors.locationId}</p> : null}
+          {fieldErrors.locationUuid ? <p className="field-error">{fieldErrors.locationUuid}</p> : null}
 
           <label htmlFor="implement-description">Descripcion</label>
           <textarea

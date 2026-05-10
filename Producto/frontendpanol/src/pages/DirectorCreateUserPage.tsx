@@ -225,7 +225,7 @@ export function DirectorCreateUserPage({ embedded = false }: { embedded?: boolea
             <table className="category-table">
               <thead>
                 <tr>
-                  <th>ID</th>
+                  <th>UUID</th>
                   <th>Nombre</th>
                   <th>RUT</th>
                   <th>Correo</th>
@@ -237,7 +237,7 @@ export function DirectorCreateUserPage({ embedded = false }: { embedded?: boolea
               <tbody>
                 {sortedUsers.map((user) => (
                   <tr key={getUserRef(user)}>
-                    <td>{user.id}</td>
+                    <td>{user.uuid}</td>
                     <td>{user.name}</td>
                     <td>{formatRutDisplay(user.rut)}</td>
                     <td>{user.email ?? "-"}</td>
@@ -368,5 +368,5 @@ export function DirectorCreateUserPage({ embedded = false }: { embedded?: boolea
   return embedded ? content : content;
 }
   function getUserRef(user: UserAdminSummary): string {
-    return user.uuid ?? String(user.id);
+    return user.uuid;
   }

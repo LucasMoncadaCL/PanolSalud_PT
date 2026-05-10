@@ -29,7 +29,7 @@ public class RestAuthenticationEntryPoint implements AuthenticationEntryPoint {
         response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
 
-        LOG.warn("{\"event\":\"client_error_handled\",\"timestamp\":\"{}\",\"endpoint_tag\":\"auth\",\"code\":401,\"error_type\":\"{}\",\"user_id\":\"Ninguno\",\"path\":\"{}\",\"cause\":\"{}\"}",
+        LOG.warn("{\"event\":\"client_error_handled\",\"timestamp\":\"{}\",\"endpoint_tag\":\"auth\",\"code\":401,\"error_type\":\"{}\",\"user_uuid\":\"Ninguno\",\"path\":\"{}\",\"cause\":\"{}\"}",
                 OffsetDateTime.now(), authException.getClass().getSimpleName(), request.getRequestURI(), authException.getMessage());
 
         ErrorResponse payload = new ErrorResponse("401", "No autorizado", OffsetDateTime.now());

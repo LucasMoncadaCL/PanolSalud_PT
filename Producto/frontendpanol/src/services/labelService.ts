@@ -3,16 +3,16 @@ import { apiClient } from "./apiClient";
 export type LabelScope = "GENERAL" | "INDIVIDUAL";
 
 export async function fetchLabelsPdfBlob(
-  implementId: number,
+  implementUuid: string,
   scope: LabelScope,
   quantity = 1,
-  individualId?: number,
+  individualUuid?: string,
 ): Promise<Blob> {
-  const response = await apiClient.get(`/api/implements/${implementId}/labels/pdf`, {
+  const response = await apiClient.get(`/api/v2/implements/${implementUuid}/labels/pdf`, {
     params: {
       quantity,
       scope,
-      ...(individualId != null ? { individual_id: individualId } : {}),
+      ...(individualUuid != null ? { individual_uuid: individualUuid } : {}),
     },
     responseType: "blob",
   });

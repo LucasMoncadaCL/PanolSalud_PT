@@ -6,6 +6,7 @@ import com.panol_project.backendpanol.modules.catalog.stock.infrastructure.mongo
 import org.springframework.stereotype.Service;
 import java.time.Instant;
 import java.util.List;
+import java.util.UUID;
 
 @Service
 public class InventoryMovementService {
@@ -16,20 +17,20 @@ public class InventoryMovementService {
         this.repository = repository;
     }
 
-    public InventoryMovement registrarMovimiento(Integer implementId, MovementAction action, Integer quantity, Integer performedBy, String notes) {
+    public InventoryMovement registrarMovimiento(UUID implementUuid, MovementAction action, Integer quantity, UUID performedByUuid, String notes) {
         InventoryMovement movement = new InventoryMovement(
-                implementId, 
+                implementUuid,
                 action, 
                 quantity, 
-                performedBy, 
+                performedByUuid,
                 Instant.now(), 
                 notes
         );
         return repository.save(movement);
     }
 
-    public List<InventoryMovement> obtenerUltimosMovimientos(Integer implementId) {
-        return repository.findTop10ByImplementIdOrderByTimestampDesc(implementId);
+    public List<InventoryMovement> obtenerUltimosMovimientos(UUID implementUuid) {
+        return repository.findTop10ByImplementUuidOrderByTimestampDesc(implementUuid);
     }
 
     public List<InventoryMovement> obtenerTodosMovimientos() {

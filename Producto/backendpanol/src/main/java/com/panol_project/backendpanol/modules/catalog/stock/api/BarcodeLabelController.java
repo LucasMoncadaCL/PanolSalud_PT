@@ -13,7 +13,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/api/implements/{implementId}/labels")
+@RequestMapping("/internal/legacy/api/implements/{implementId}/labels")
 public class BarcodeLabelController {
 
     private final BarcodeLabelService service;

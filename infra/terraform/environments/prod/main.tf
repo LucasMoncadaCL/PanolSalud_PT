@@ -16,6 +16,7 @@ locals {
     APP_AUTH_LOCK_MINUTES = tostring(var.app_auth_lock_minutes)
     APP_AUTH_JWT_ISSUER = var.app_auth_jwt_issuer
     APP_AUTH_JWT_EXPIRATION_SECONDS = tostring(var.app_auth_jwt_expiration_seconds)
+    JWT_ISSUER_URI       = var.jwt_issuer_uri
     FRONTEND_ORIGIN      = local.frontend_origin
     CORS_ALLOWED_ORIGINS = local.frontend_origin
     DB_SUPABASE_HOST     = var.supabase_db_host
@@ -26,7 +27,8 @@ locals {
   })
 
   frontend_env = {
-    VITE_API_BASE_URL = var.backend_domain != "" ? "https://${var.backend_domain}" : module.backend_service.service_uri
+    VITE_API_BASE_URL                = var.backend_domain != "" ? "https://${var.backend_domain}" : module.backend_service.service_uri
+    VITE_SUPABASE_PUBLISHABLE_KEY    = var.vite_supabase_publishable_key
   }
 }
 
@@ -48,12 +50,12 @@ module "secret_manager" {
   secrets = [
     "DB_SUPABASE_PASSWORD",
     "MONGODB_URI",
-    "JWT_ISSUER_URI",
-    "APP_AUTH_JWT_SECRET",
-    "VITE_SUPABASE_PUBLISHABLE_KEY"
+    "APP_AUTH_JWT_SECRET"
   ]
   secret_values = {
-    MONGODB_URI = var.mongodb_uri_secret_value
+    DB_SUPABASE_PASSWORD = var.db_supabase_password_secret_value
+    MONGODB_URI          = var.mongodb_uri_secret_value
+    APP_AUTH_JWT_SECRET  = var.app_auth_jwt_secret_value
   }
 }
 
@@ -96,13 +98,9 @@ module "backend_service" {
       secret  = module.secret_manager.secret_ids["MONGODB_URI"]
       version = try(module.secret_manager.secret_versions["MONGODB_URI"], "latest")
     }
-    JWT_ISSUER_URI = {
-      secret  = module.secret_manager.secret_ids["JWT_ISSUER_URI"]
-      version = "latest"
-    }
     APP_AUTH_JWT_SECRET = {
       secret  = module.secret_manager.secret_ids["APP_AUTH_JWT_SECRET"]
-      version = "latest"
+      version = try(module.secret_manager.secret_versions["APP_AUTH_JWT_SECRET"], "latest")
     }
   }
   custom_domain = var.backend_domain
@@ -128,12 +126,7 @@ module "frontend_service" {
   timeout_seconds                  = var.frontend_timeout_seconds
   max_instance_request_concurrency = var.frontend_concurrency
   env_vars                         = local.frontend_env
-  secret_env_vars = {
-    VITE_SUPABASE_PUBLISHABLE_KEY = {
-      secret  = module.secret_manager.secret_ids["VITE_SUPABASE_PUBLISHABLE_KEY"]
-      version = "latest"
-    }
-  }
+  secret_env_vars = {}
   custom_domain = var.frontend_domain
   providers = {
     google      = google

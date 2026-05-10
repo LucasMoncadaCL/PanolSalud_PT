@@ -1,61 +1,54 @@
 import { apiClient } from "./apiClient";
-import type {
-  Categoria,
-  CategoriaAssociationSummary,
-  CategoriaPayload,
-} from "../types/category";
-
-const basePath = "/api/categorias";
+import type { Categoria, CategoriaAssociationSummary, CategoriaPayload } from "../types/category";
+const basePathV2 = "/api/v2/categories";
 
 export async function fetchCategoriasGestion(): Promise<Categoria[]> {
-  const response = await apiClient.get<Categoria[]>(`${basePath}/gestion`);
+  const response = await apiClient.get<Categoria[]>(`${basePathV2}/gestion`);
   return response.data;
 }
 
 export async function fetchCategoriaAssociation(
-  categoryId: number,
+  categoryUuid: string,
 ): Promise<CategoriaAssociationSummary> {
   const response = await apiClient.get<{
-    categoriaId?: number;
-    categoryId?: number;
-    implementosAsociados?: number;
+    categoryUuid?: string;
     implementCount?: number;
     canDelete: boolean;
   }>(
-    `${basePath}/${categoryId}/asociaciones`,
+    `${basePathV2}/${categoryUuid}/associations`,
   );
 
   return {
-    categoryId: response.data.categoryId ?? response.data.categoriaId ?? categoryId,
-    implementCount: response.data.implementCount ?? response.data.implementosAsociados ?? 0,
+    categoryUuid: response.data.categoryUuid ?? categoryUuid,
+    implementCount: response.data.implementCount ?? 0,
     canDelete: response.data.canDelete,
   };
 }
 
 export async function createCategoria(payload: CategoriaPayload): Promise<Categoria> {
-  const response = await apiClient.post<Categoria>(basePath, payload);
+  const response = await apiClient.post<Categoria>(basePathV2, payload);
   return response.data;
 }
 
 export async function updateCategoria(
-  categoryId: number,
+  categoryUuid: string,
   payload: CategoriaPayload,
 ): Promise<Categoria> {
-  const response = await apiClient.put<Categoria>(`${basePath}/${categoryId}`, payload);
+  const response = await apiClient.put<Categoria>(`${basePathV2}/${categoryUuid}`, payload);
   return response.data;
 }
 
 export async function deactivateCategoria(
-  categoryId: number,
+  categoryUuid: string,
   force: boolean,
 ): Promise<Categoria> {
   const response = await apiClient.patch<Categoria>(
-    `${basePath}/${categoryId}/desactivar?force=${force}`,
+    `${basePathV2}/${categoryUuid}/deactivate?force=${force}`,
   );
   return response.data;
 }
 
-export async function deleteCategoria(categoryId: number): Promise<void> {
-  await apiClient.delete(`${basePath}/${categoryId}`);
+export async function deleteCategoria(categoryUuid: string): Promise<void> {
+  await apiClient.delete(`${basePathV2}/${categoryUuid}`);
 }
 

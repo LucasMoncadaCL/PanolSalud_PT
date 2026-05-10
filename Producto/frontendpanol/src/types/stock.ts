@@ -18,16 +18,16 @@ export interface StockCounters {
 }
 
 export interface IndividualItem {
-  id: number;
+  uuid: string;
   asset_code: string;
   status: "available" | "loaned" | "maintenance" | "damaged" | "blocked" | "retired";
   condition: "good" | "damaged_repairable" | "damaged_no_diagnosis" | "irreparable";
-  current_location_id: number | null;
+  current_location_uuid: string | null;
   active: boolean;
 }
 
 export interface StockDetail {
-  implement_id: number;
+  implement_uuid: string;
   item_type: "consumable" | "reusable" | "individual" | null;
   stock: StockCounters;
   individuals: IndividualItem[];
@@ -41,13 +41,13 @@ export interface StockEntryPayload {
 export interface StockMovementPayload {
   movement_type: StockMovementType;
   quantity?: number;
-  individual_ids?: number[];
+  individual_uuids?: string[];
   condition?: IndividualItem["condition"];
 }
 
 export interface IndividualUpdatePayload {
   status?: IndividualItem["status"];
   condition?: IndividualItem["condition"];
-  current_location_id?: number | null;
+  current_location_uuid?: string | null;
   active?: boolean;
 }

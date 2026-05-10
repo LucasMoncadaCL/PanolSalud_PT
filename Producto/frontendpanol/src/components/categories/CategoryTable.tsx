@@ -2,7 +2,7 @@ import type { Categoria, CategoriaAssociationSummary } from "../../types/categor
 
 interface CategoryTableProps {
   categories: Categoria[];
-  associations: Record<number, CategoriaAssociationSummary>;
+  associations: Record<string, CategoriaAssociationSummary>;
   loading: boolean;
   onEdit: (category: Categoria) => void;
   onDeactivate: (category: Categoria) => void;
@@ -48,12 +48,12 @@ export function CategoryTable({
         </thead>
         <tbody>
           {categories.map((category) => {
-            const association = associations[category.id];
+            const association = associations[category.uuid];
             const implementCount = association?.implementCount ?? 0;
             const canDelete = association?.canDelete ?? false;
 
             return (
-              <tr key={category.id}>
+              <tr key={category.uuid}>
                 <td>
                   <strong>{category.nombre}</strong>
                 </td>
