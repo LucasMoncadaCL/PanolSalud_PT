@@ -35,14 +35,14 @@ public class ImplementJooqRepository implements ImplementRepository {
     private static final Field<String> IMPLEMENT_BARCODE = DSL.field(DSL.name("barcode"), String.class);
     private static final Field<String> IMPLEMENT_IMG_URL = DSL.field(DSL.name("img_url"), String.class);
 
-    private static final Field<UUID> IMPLEMENT_UUID = DSL.field(DSL.name("uuid"), UUID.class);
-    private static final Field<UUID> IMPLEMENT_CATEGORY_UUID = DSL.field(DSL.name("category_uuid"), UUID.class);
-    private static final Field<UUID> IMPLEMENT_LOCATION_UUID = DSL.field(DSL.name("location_uuid"), UUID.class);
+    private static final Field<UUID> IMPLEMENT_UUID = DSL.field(DSL.name("implement", "uuid"), UUID.class);
+    private static final Field<UUID> IMPLEMENT_CATEGORY_UUID = DSL.field(DSL.name("implement", "category_uuid"), UUID.class);
+    private static final Field<UUID> IMPLEMENT_LOCATION_UUID = DSL.field(DSL.name("implement", "location_uuid"), UUID.class);
 
     private static final Field<UUID> CATEGORY_UUID = DSL.field(DSL.name("category", "uuid"), UUID.class);
     private static final Field<UUID> LOCATION_UUID = DSL.field(DSL.name("location", "uuid"), UUID.class);
 
-    private static final Field<UUID> STOCK_IMPLEMENT_UUID = DSL.field(DSL.name("implement_uuid"), UUID.class);
+    private static final Field<UUID> STOCK_IMPLEMENT_UUID = DSL.field(DSL.name("stock", "implement_uuid"), UUID.class);
 
     public ImplementJooqRepository(DSLContext dsl) {
         this.dsl = dsl;
