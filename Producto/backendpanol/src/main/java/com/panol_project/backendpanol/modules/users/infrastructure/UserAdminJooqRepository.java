@@ -2,7 +2,6 @@ package com.panol_project.backendpanol.modules.users.infrastructure;
 
 import static com.panol_project.backendpanol.jooq.tables.Role.ROLE;
 import static com.panol_project.backendpanol.jooq.tables.User.USER;
-import static org.jooq.impl.DSL.field;
 
 import com.panol_project.backendpanol.modules.users.domain.UserAdminRepository;
 import com.panol_project.backendpanol.modules.users.domain.UserAdminSummary;
@@ -38,11 +37,7 @@ public class UserAdminJooqRepository implements UserAdminRepository {
 
     @Override
     public int countUsersByRutOrEmail(String normalizedRut, String normalizedEmail) {
-        var normalizedRutField = field(
-                "replace(replace(replace({0}, '.', ''), '-', ''), ' ', '')",
-                String.class,
-                USER.RUT);
-        var duplicateCondition = normalizedRutField.eq(normalizedRut);
+        var duplicateCondition = USER.RUT.eq(normalizedRut);
         if (normalizedEmail != null) {
             duplicateCondition = duplicateCondition.or(USER.EMAIL.eq(normalizedEmail));
         }
@@ -54,11 +49,7 @@ public class UserAdminJooqRepository implements UserAdminRepository {
 
     @Override
     public int countUsersByRutOrEmailExcludingUser(String normalizedRut, String normalizedEmail, UUID userUuid) {
-        var normalizedRutField = field(
-                "replace(replace(replace({0}, '.', ''), '-', ''), ' ', '')",
-                String.class,
-                USER.RUT);
-        var duplicateCondition = normalizedRutField.eq(normalizedRut);
+        var duplicateCondition = USER.RUT.eq(normalizedRut);
         if (normalizedEmail != null) {
             duplicateCondition = duplicateCondition.or(USER.EMAIL.eq(normalizedEmail));
         }

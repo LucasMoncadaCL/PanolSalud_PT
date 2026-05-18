@@ -1,5 +1,6 @@
 package com.panol_project.backendpanol.modules.catalog.stock.application;
 
+import com.panol_project.backendpanol.modules.catalog.stock.application.contract.StockMovementContract;
 import com.panol_project.backendpanol.modules.catalog.stock.domain.IndividualItem;
 import com.panol_project.backendpanol.modules.catalog.stock.domain.InventoryMovement;
 import com.panol_project.backendpanol.modules.catalog.stock.domain.InventoryMovementRepository;
@@ -14,22 +15,21 @@ import com.panol_project.backendpanol.shared.error.BadRequestException;
 import com.panol_project.backendpanol.shared.error.ConflictException;
 import com.panol_project.backendpanol.shared.error.NotFoundException;
 import com.panol_project.backendpanol.shared.outbox.application.OutboxService;
+import com.panol_project.backendpanol.shared.security.CurrentUserUuidResolver;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
+import org.jooq.exception.DataAccessException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
-public class StockService {
+public class StockService implements StockMovementContract {
 
     private static final Set<String> VALID_INDIVIDUAL_STATUS = Set.of(
             "available", "loaned", "maintenance", "damaged"
@@ -42,15 +42,18 @@ public class StockService {
     private final StockRepository repository;
     private final OutboxService outboxService;
     private final InventoryMovementRepository inventoryMovementRepository;
+    private final CurrentUserUuidResolver currentUserUuidResolver;
 
     public StockService(
             StockRepository repository,
             OutboxService outboxService,
-            InventoryMovementRepository inventoryMovementRepository
+            InventoryMovementRepository inventoryMovementRepository,
+            CurrentUserUuidResolver currentUserUuidResolver
     ) {
         this.repository = repository;
         this.outboxService = outboxService;
         this.inventoryMovementRepository = inventoryMovementRepository;
+        this.currentUserUuidResolver = currentUserUuidResolver;
     }
 
     @Transactional(readOnly = true)
@@ -80,6 +83,14 @@ public class StockService {
                 repository.createIndividuals(implementUuid, context.locationUuid(), normalizedCodes);
             } catch (DataIntegrityViolationException ex) {
                 throw new ConflictException("INDIVIDUAL_ASSET_CODE_DUPLICATE", "Uno o mas codigos de activo ya existen");
+            } catch (DataAccessException ex) {
+                if (isNoFungibleGuardViolation(ex)) {
+                    throw new BadRequestException(
+                            "INDIVIDUAL_NOT_ALLOWED_FOR_FUNGIBLE",
+                            "No se pueden crear unidades individuales para implementos fungibles"
+                    );
+                }
+                throw ex;
             }
         }
 
@@ -118,6 +129,24 @@ public class StockService {
         recordInventoryMovement(implementUuid, MovementAction.valueOf(movementType.name()), movementQty, "Stock movement");
         outboxService.enqueue("implement", implementUuid, "StockMovementApplied", null, java.util.Map.of("movement_type", movementType.name()));
         return getStockDetail(implementUuid);
+    }
+
+    @Override
+    @Transactional
+    public void applyMovement(
+            UUID implementUuid,
+            String movementType,
+            Integer quantity,
+            List<UUID> individualUuids,
+            String condition
+    ) {
+        StockMovementType parsedType = StockMovementType.fromLiteral(movementType)
+                .orElseThrow(() -> new BadRequestException(
+                        "STOCK_MOVEMENT_TYPE_INVALID",
+                        "movement_type invalido. Usa STOCK_IN, STOCK_OUT, LOAN_DELIVERY, LOAN_RETURN, DAMAGE_REPORT o MANUAL_ADJUSTMENT"
+                ));
+
+        applyMovement(implementUuid, parsedType, quantity, individualUuids, condition);
     }
 
     @Transactional
@@ -406,7 +435,8 @@ public class StockService {
     }
 
     private void recordInventoryMovement(UUID implementUuid, MovementAction action, int quantity, String notes) {
-        UUID actorUuid = requireCurrentUserUuid();
+        UUID actorUuid = currentUserUuidResolver.resolveCurrentUserUuid()
+                .orElseThrow(() -> new ApiException(HttpStatus.UNAUTHORIZED, "AUTH_REQUIRED", "Autenticacion requerida"));
         InventoryMovement movement = new InventoryMovement(
                 implementUuid,
                 action,
@@ -418,30 +448,17 @@ public class StockService {
         inventoryMovementRepository.save(movement);
     }
 
-    private UUID requireCurrentUserUuid() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication == null) {
-            throw new ApiException(HttpStatus.UNAUTHORIZED, "AUTH_REQUIRED", "Autenticacion requerida");
+    private boolean isNoFungibleGuardViolation(Throwable throwable) {
+        Throwable current = throwable;
+        while (current != null) {
+            String message = current.getMessage();
+            if (message != null
+                    && message.contains("no se pueden crear unidades individuales")
+                    && message.contains("fungible")) {
+                return true;
+            }
+            current = current.getCause();
         }
-
-        Object principal = authentication.getPrincipal();
-        if (principal instanceof Jwt jwt) {
-            return parseUuid(jwt.getSubject());
-        }
-        if (principal instanceof String value) {
-            return parseUuid(value);
-        }
-        throw new ApiException(HttpStatus.UNAUTHORIZED, "AUTH_SUBJECT_INVALID", "Token invalido");
-    }
-
-    private UUID parseUuid(String raw) {
-        if (raw == null || raw.isBlank()) {
-            throw new ApiException(HttpStatus.UNAUTHORIZED, "AUTH_SUBJECT_INVALID", "Token invalido");
-        }
-        try {
-            return UUID.fromString(raw);
-        } catch (IllegalArgumentException ex) {
-            throw new ApiException(HttpStatus.UNAUTHORIZED, "AUTH_SUBJECT_INVALID", "Token invalido");
-        }
+        return false;
     }
 }

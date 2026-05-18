@@ -9,6 +9,7 @@ import com.panol_project.backendpanol.modules.catalog.stock.application.Inventor
 import com.panol_project.backendpanol.modules.catalog.stock.domain.InventoryMovement;
 import com.panol_project.backendpanol.modules.catalog.stock.domain.MovementAction;
 import com.panol_project.backendpanol.modules.users.application.contract.UserDirectoryContract;
+import com.panol_project.backendpanol.shared.security.CurrentUserUuidResolver;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -27,6 +28,9 @@ class InventoryMovementV2ControllerTest {
     @Mock
     private UserDirectoryContract userDirectoryContract;
 
+    @Mock
+    private CurrentUserUuidResolver currentUserUuidResolver;
+
     @Test
     void listarMovimientosDebeResolverNombreDesdeContrato() {
         UUID implementUuid = UUID.randomUUID();
@@ -43,7 +47,8 @@ class InventoryMovementV2ControllerTest {
 
         InventoryMovementV2Controller controller = new InventoryMovementV2Controller(
                 inventoryMovementService,
-                userDirectoryContract
+                userDirectoryContract,
+                currentUserUuidResolver
         );
 
         when(inventoryMovementService.obtenerTodosMovimientos()).thenReturn(List.of(movement));

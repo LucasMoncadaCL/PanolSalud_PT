@@ -7,13 +7,13 @@ import com.panol_project.backendpanol.modules.catalog.stock.domain.InventoryMove
 import com.panol_project.backendpanol.modules.catalog.stock.domain.MovementAction;
 import com.panol_project.backendpanol.modules.users.application.contract.UserDirectoryContract;
 import com.panol_project.backendpanol.shared.error.ApiException;
+import com.panol_project.backendpanol.shared.security.CurrentUserUuidResolver;
 import jakarta.validation.Valid;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -22,13 +22,16 @@ public class InventoryMovementV2Controller {
 
     private final InventoryMovementService service;
     private final UserDirectoryContract userDirectoryContract;
+    private final CurrentUserUuidResolver currentUserUuidResolver;
 
     public InventoryMovementV2Controller(
             InventoryMovementService service,
-            UserDirectoryContract userDirectoryContract
+            UserDirectoryContract userDirectoryContract,
+            CurrentUserUuidResolver currentUserUuidResolver
     ) {
         this.service = service;
         this.userDirectoryContract = userDirectoryContract;
+        this.currentUserUuidResolver = currentUserUuidResolver;
     }
 
     @GetMapping("/movements")
@@ -75,18 +78,8 @@ public class InventoryMovementV2Controller {
     }
 
     private UUID extractUserUuid(Authentication authentication) {
-        if (authentication == null || !(authentication.getPrincipal() instanceof Jwt jwt)) {
-            throw new ApiException(HttpStatus.UNAUTHORIZED, "AUTH_REQUIRED", "Autenticacion requerida");
-        }
-        String subject = jwt.getSubject();
-        if (subject == null || subject.isBlank()) {
-            throw new ApiException(HttpStatus.UNAUTHORIZED, "AUTH_SUBJECT_MISSING", "Token invalido");
-        }
-        try {
-            return UUID.fromString(subject);
-        } catch (IllegalArgumentException ex) {
-            throw new ApiException(HttpStatus.UNAUTHORIZED, "AUTH_SUBJECT_INVALID", "Token invalido");
-        }
+        return currentUserUuidResolver.resolveCurrentUserUuid(authentication)
+                .orElseThrow(() -> new ApiException(HttpStatus.UNAUTHORIZED, "AUTH_REQUIRED", "Autenticacion requerida"));
     }
 
     private String resolvePerformerName(Map<UUID, String> userNames, UUID performedByUuid) {

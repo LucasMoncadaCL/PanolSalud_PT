@@ -10,6 +10,7 @@ import com.panol_project.backendpanol.modules.catalog.stock.domain.StockDetail;
 import com.panol_project.backendpanol.modules.catalog.stock.domain.StockItemType;
 import com.panol_project.backendpanol.modules.catalog.stock.domain.StockRepository;
 import com.panol_project.backendpanol.shared.outbox.application.OutboxService;
+import com.panol_project.backendpanol.shared.security.CurrentUserUuidResolver;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -29,6 +30,9 @@ class StockServiceTest {
 
     @Mock
     private InventoryMovementRepository inventoryMovementRepository;
+
+    @Mock
+    private CurrentUserUuidResolver currentUserUuidResolver;
 
     @Test
     void getStockDetailDebeUsarStockItemTypeLocalYRetornarStockPersistido() {
@@ -50,7 +54,7 @@ class StockServiceTest {
                         new IndividualItem(UUID.randomUUID(), implementUuid, "A3", "damaged", "poor", null, locationUuid, true)
                 ));
 
-        StockService service = new StockService(repository, outboxService, inventoryMovementRepository);
+        StockService service = new StockService(repository, outboxService, inventoryMovementRepository, currentUserUuidResolver);
         StockDetail detail = service.getStockDetail(implementUuid);
 
         assertEquals(StockItemType.NO_FUNGIBLE, detail.itemType());

@@ -234,6 +234,20 @@ CREATE TABLE public."user" (
     CONSTRAINT fk_user_career FOREIGN KEY (career_id) REFERENCES public.career(id) ON DELETE RESTRICT
 );
 
+-- System actor used by asynchronous workers (Outbox, schedulers) under strict RLS.
+INSERT INTO public."user" (uuid, role_id, name, rut, email, password_hash, active)
+SELECT
+    '99999999-9999-9999-9999-999999999999'::UUID,
+    r.id,
+    'SISTEMA_OUTBOX',
+    '99.999.999-9',
+    'sistema.outbox@duocuc.cl',
+    '$2a$10$falsa_pero_valida_para_not_null',
+    true
+FROM public.role r
+WHERE r.name = 'coordinador'
+ON CONFLICT (uuid) DO NOTHING;
+
 CREATE TABLE public.implement (
     id           BIGSERIAL,
     uuid         UUID              NOT NULL DEFAULT gen_random_uuid(),
@@ -581,8 +595,15 @@ AS $$
         u.blocked_until
     FROM public."user" u
     JOIN public.role r ON r.id = u.role_id
-    WHERE replace(replace(replace(u.rut, '.', ''), '-', ''), ' ', '') =
-          replace(replace(replace(COALESCE(p_rut, ''), '.', ''), '-', ''), ' ', '')
+    WHERE u.rut = CASE
+                      WHEN length(replace(replace(replace(COALESCE(p_rut, ''), '.', ''), '-', ''), ' ', '')) > 1
+                      THEN substring(
+                          replace(replace(replace(COALESCE(p_rut, ''), '.', ''), '-', ''), ' ', ''),
+                          1,
+                          length(replace(replace(replace(COALESCE(p_rut, ''), '.', ''), '-', ''), ' ', '')) - 1
+                      )
+                      ELSE ''
+                  END
       AND u.active IS TRUE
     LIMIT 1
 $$;

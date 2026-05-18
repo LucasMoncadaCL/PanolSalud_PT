@@ -4,10 +4,14 @@ import com.panol_project.backendpanol.shared.outbox.domain.OutboxEventStatus;
 import com.panol_project.backendpanol.shared.outbox.domain.OutboxPublisher;
 import com.panol_project.backendpanol.shared.outbox.domain.OutboxRepository;
 import java.time.OffsetDateTime;
+import java.util.UUID;
+import org.jooq.DSLContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 @Component
 public class OutboxWorker {
@@ -17,15 +21,27 @@ public class OutboxWorker {
     private final OutboxRepository outboxRepository;
     private final OutboxPublisher outboxPublisher;
     private final OutboxObservabilityService observabilityService;
+    private final DSLContext dsl;
+    private final UUID outboxSystemUserUuid;
 
-    public OutboxWorker(OutboxRepository outboxRepository, OutboxPublisher outboxPublisher, OutboxObservabilityService observabilityService) {
+    public OutboxWorker(
+            OutboxRepository outboxRepository,
+            OutboxPublisher outboxPublisher,
+            OutboxObservabilityService observabilityService,
+            DSLContext dsl,
+            @Value("${app.outbox.system-user-uuid:}") String outboxSystemUserUuidRaw
+    ) {
         this.outboxRepository = outboxRepository;
         this.outboxPublisher = outboxPublisher;
         this.observabilityService = observabilityService;
+        this.dsl = dsl;
+        this.outboxSystemUserUuid = parseSystemUserUuid(outboxSystemUserUuidRaw);
     }
 
     @Scheduled(fixedDelayString = "${app.outbox.worker-delay-ms:5000}")
+    @Transactional
     public void publishPending() {
+        applySystemUserRlsContext();
         outboxRepository.findPending(50).forEach(event -> {
             try {
                 outboxRepository.markProcessing(event.eventId());
@@ -53,5 +69,23 @@ public class OutboxWorker {
                 metrics.retryCount(),
                 metrics.failedCount(),
                 metrics.publishSuccessRate());
+    }
+
+    private void applySystemUserRlsContext() {
+        if (outboxSystemUserUuid == null) {
+            return;
+        }
+        dsl.execute("select set_config('app.current_user_uuid', ?, true)", outboxSystemUserUuid.toString());
+    }
+
+    private UUID parseSystemUserUuid(String rawValue) {
+        if (rawValue == null || rawValue.isBlank()) {
+            return null;
+        }
+        try {
+            return UUID.fromString(rawValue.trim());
+        } catch (IllegalArgumentException ex) {
+            throw new IllegalStateException("app.outbox.system-user-uuid no tiene un UUID valido", ex);
+        }
     }
 }
